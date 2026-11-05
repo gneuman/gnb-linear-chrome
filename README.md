@@ -1,4 +1,4 @@
-# gnb-linear-extension · ¿Qué sigue?
+# gnb-linear-chrome · ¿Qué sigue?
 
 Extensión de Chrome para operar el día desde Linear sin abrir Linear:
 qué sigue, qué se suelta a un agente, qué está atorado y tus recordatorios.
