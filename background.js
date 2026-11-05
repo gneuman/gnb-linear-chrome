@@ -1,7 +1,7 @@
 // Service worker: revisa Linear cada 15 min, pone el número en el ícono,
 // manda el resumen diario y dispara los recordatorios.
-import { misIssues } from './lib/linear.js';
-import { clasificar } from './lib/estado.js';
+import { resolverPersona, issuesDe } from './lib/linear.js';
+import { clasificar, nuevos } from './lib/estado.js';
 import { siguienteHora } from './lib/schedule.js';
 import { config, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
@@ -14,7 +14,7 @@ chrome.runtime.onInstalled.addListener(programar);
 chrome.runtime.onStartup.addListener(programar);
 
 async function programar() {
-  chrome.alarms.create(REVISAR, { periodInMinutes: 15, delayInMinutes: 0.1 });
+  chrome.alarms.create(REVISAR, { periodInMinutes: 5, delayInMinutes: 0.1 });
   const c = await config();
   chrome.alarms.create(RESUMEN, { when: siguienteHora(c.horaResumen, 'diario') });
   await sincronizarRecordatorios();
@@ -35,6 +35,16 @@ async function sincronizarRecordatorios() {
   await pintarNumero();
 }
 
+/** Correo del perfil de Chrome (vacío si no hay sesión de Chrome o no hay permiso). */
+async function correoDeChrome() {
+  try {
+    const info = await chrome.identity.getProfileUserInfo({ accountStatus: 'ANY' });
+    return info?.email || '';
+  } catch {
+    return '';
+  }
+}
+
 async function refrescar() {
   const c = await config();
   if (!c.llave) {
@@ -43,14 +53,50 @@ async function refrescar() {
     return null;
   }
   try {
-    const issues = await misIssues(c.llave);
-    await chrome.storage.local.set({ cache: { issues, at: Date.now() } });
+    const { cache: previo = {} } = await chrome.storage.local.get('cache');
+    const correos = [
+      { correo: c.correo, fuente: 'ajustes' },
+      { correo: await correoDeChrome(), fuente: 'chrome' },
+    ];
+    // La persona se resuelve una vez y se guarda; se vuelve a buscar si cambian los correos.
+    const clave = correos.map((x) => x.correo).join('|');
+    const persona = previo.persona && previo.claveCorreos === clave ? previo.persona : await resolverPersona(c.llave, correos);
+    const issues = await issuesDe(c.llave, persona.id);
+
+    const mismoDueno = previo.persona?.id === persona.id;
+    if (c.avisarNuevos && mismoDueno) avisarNuevos(nuevos(previo.ids, issues));
+
+    await chrome.storage.local.set({
+      cache: { issues, ids: issues.map((i) => i.id), persona, claveCorreos: clave, at: Date.now() },
+    });
   } catch (e) {
     const { cache = {} } = await chrome.storage.local.get('cache');
     await chrome.storage.local.set({ cache: { ...cache, error: e.message, at: Date.now() } });
   }
   await pintarNumero();
   return chrome.storage.local.get('cache').then((x) => x.cache);
+}
+
+const NUEVO = 'nuevo:';
+
+function avisarNuevos(lista) {
+  if (!lista.length) return;
+  if (lista.length > 3) {
+    chrome.notifications.create(NUEVO + 'varios', {
+      type: 'basic', iconUrl: ICONO,
+      title: `${lista.length} issues nuevos en Linear`,
+      message: lista.slice(0, 3).map((i) => `${i.identifier} ${i.title}`).join('\n') + '\n…',
+    });
+    return;
+  }
+  for (const i of lista) {
+    chrome.notifications.create(NUEVO + i.id, {
+      type: 'basic', iconUrl: ICONO,
+      title: `Nuevo: ${i.identifier}`,
+      message: `${i.title}${i.priority === 1 ? ' · Urgente' : ''}`,
+      contextMessage: [i.team?.key, i.state?.name].filter(Boolean).join(' · '),
+    });
+  }
 }
 
 async function pintarNumero() {
@@ -136,6 +182,14 @@ chrome.notifications.onButtonClicked.addListener(async (notifId, boton) => {
 });
 
 chrome.notifications.onClicked.addListener(async (notifId) => {
+  if (notifId.startsWith(NUEVO)) {
+    const { cache } = await chrome.storage.local.get('cache');
+    const issue = cache?.issues?.find((i) => i.id === notifId.slice(NUEVO.length));
+    if (issue) chrome.tabs.create({ url: issue.url });
+    else chrome.action.openPopup?.().catch(() => {});
+    chrome.notifications.clear(notifId);
+    return;
+  }
   if (!notifId.startsWith(REC)) return;
   const r = (await recordatorios()).find((x) => x.id === notifId.slice(REC.length));
   if (r?.issueUrl) chrome.tabs.create({ url: r.issueUrl });

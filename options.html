@@ -18,6 +18,12 @@
     <input id="llave" type="password" autocomplete="off" placeholder="lin_api_…">
     <small>Linear → Settings → Security &amp; access → Personal API keys. Se guarda solo en este Chrome.</small>
 
+    <label for="correo">Correo de la persona</label>
+    <input id="correo" type="email" autocomplete="off">
+    <small id="correo-ayuda">Solo se muestran las tareas asignadas a este correo en Linear. Vacío = el correo de tu perfil de Chrome; si ese no está en Linear, el dueño de la API key.</small>
+
+    <label><input id="avisar" type="checkbox" style="width:auto"> Avisar en Chrome cuando me asignen un issue nuevo</label>
+
     <label for="hora">Hora del resumen diario</label>
     <input id="hora" type="time">
 

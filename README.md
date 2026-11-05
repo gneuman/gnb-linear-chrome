@@ -19,7 +19,9 @@ Lee los labels que ya existen en el workspace (máquina de estados de
 | **Mover a agente** | Pone `🤖 listo-para-agente`. Si falta `📦 brief-incluido` o `riesgo`, no lo mueve y te dice que corras `/triage-dia` |
 | **Recordatorios** | Escribe arriba `10am revisar propuesta`, `a las 16:30 llamar`, `en 30 min mandar correo`. Una vez, diario o L a V. El ⏰ de cada issue lo prellena |
 | **Cinco por grupo** | Cada grupo enseña 5 y el resto detrás de "Ver N más" |
-| **Ícono** | Número = lo de **Ahora** + recordatorios que ya sonaron. Revisa Linear cada 15 min |
+| **Solo tus tareas** | Identifica a la persona por correo: el de Ajustes, si no el del perfil de Chrome, si no el dueño de la API key. El pie del popup dice de quién son |
+| **Issue nuevo** | Notificación de Chrome cuando te asignan uno (revisa cada 5 min). Clic lo abre. Más de 3 a la vez = una sola notificación |
+| **Ícono** | Número = lo de **Ahora** + recordatorios que ya sonaron. Revisa Linear cada 5 min |
 | **Resumen diario** | Notificación a la hora que elijas (9:00 por omisión) |
 
 Los recordatorios suenan con notificación de Chrome con **Posponer 10 min** y
@@ -38,6 +40,12 @@ La llave se guarda solo en `chrome.storage.local` de ese Chrome. No va en el
 código ni pasa por ningún servidor.
 
 ## Límites que conviene saber
+
+- **Cada persona usa su propia API key.** Con una llave compartida verías las
+  tareas del correo correcto, pero "Empezar" y "Mover a agente" quedarían en
+  Linear a nombre del dueño de la llave.
+- Si tu Chrome está con un correo que no es el de Linear (p. ej. Gmail
+  personal), pon el correo de Linear en Ajustes.
 
 - **Los recordatorios suenan solo con Chrome abierto.** Si estaba cerrado,
   suenan al abrirlo.

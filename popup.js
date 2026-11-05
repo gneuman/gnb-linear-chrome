@@ -172,7 +172,9 @@ async function pintarAhora() {
     plegado('Esperando a otros', g.esperando, 'review o block, más viejo primero'),
     plegado('Después', g.despues, '👤 en Backlog'),
     plegado('Sin triage', g.sinTriage, 'corre /triage-dia'),
-    el('p', { class: 'meta' }, `Revisado ${new Date(datos.at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} · ${datos.issues.length} abiertos`)
+    el('p', { class: 'meta' },
+      datos.persona ? `Tareas de ${datos.persona.name} (${datos.persona.email}) · ` : '',
+      `Revisado ${new Date(datos.at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} · ${datos.issues.length} abiertos`)
   );
 }
 

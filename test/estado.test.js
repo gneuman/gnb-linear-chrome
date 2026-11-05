@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clasificar, puedeIrAAgente, labelsParaAgente, riesgo, resumen, LABEL } from '../lib/estado.js';
+import { nuevos, clasificar, puedeIrAAgente, labelsParaAgente, riesgo, resumen, LABEL } from '../lib/estado.js';
 
 const lab = (id, name = id) => ({ id, name });
 const issue = (id, extra = {}) => ({
@@ -61,4 +61,11 @@ test('resumen saca el Listo cuando', () => {
   assert.equal(r.texto, 'Qué Arreglar el checkout de Stripe.');
   assert.equal(r.listoCuando, 'el pago crea la fila en purchases');
   assert.equal(resumen('Listo cuando: pasa el test').listoCuando, 'pasa el test');
+});
+
+test('nuevos: avisa solo lo que no estaba, nunca en la primera revisión', () => {
+  const issues = [issue('OP-1'), issue('OP-2'), issue('OP-3')];
+  assert.deepEqual(nuevos(undefined, issues), [], 'primera vez: no avisa 150 issues de golpe');
+  assert.deepEqual(nuevos(['OP-1', 'OP-2'], issues).map((i) => i.id), ['OP-3']);
+  assert.deepEqual(nuevos(['OP-1', 'OP-2', 'OP-3', 'OP-9'], issues), [], 'uno que se cerró no avisa');
 });
