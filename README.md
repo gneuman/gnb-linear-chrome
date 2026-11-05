@@ -16,11 +16,12 @@ Lee los labels que ya existen en el workspace (máquina de estados de
 | **Para agente** | `🤖 listo-para-agente` sin empezar, con su color de riesgo y quién fusiona |
 | **Esperan info** | `❓ necesita-info`, con días sin moverse |
 | **No es para hoy** | Plegado, solo el número: *Esperando a otros* (Review o Block), *Después* (👤 en Backlog) y *Sin triage* (sin label o 🔍: se resuelve con `/triage-dia`) |
-| **Mover a agente** | Pone `🤖 listo-para-agente`. Si falta `📦 brief-incluido` o `riesgo`, no lo mueve y te dice que corras `/triage-dia` |
+| **Mover a agente** | Pone `🤖 listo-para-agente`, quita el 👤, lo regresa a Todo si estaba en curso y **se lo delega al agente de Ajustes** (Linear por omisión) para que lo haga. Si no tiene riesgo, te pide el color ahí mismo |
+| **Delegar al agente** | En *Para agente*, los que tienen 🤖 pero nadie trabaja. Un clic y el agente lo toma. Los delegados dicen "🤖 Linear lo trabaja" |
+| **Tamaño y prioridad** | Cada issue enseña su prioridad (Urgente en rojo, Alta en naranja) y su talla (XS–XL) |
 | **Recordatorios** | Escribe arriba `10am revisar propuesta`, `a las 16:30 llamar`, `en 30 min mandar correo`. Una vez, diario o L a V. El ⏰ de cada issue lo prellena |
 | **Proyecto** | Selector arriba: Todos, un proyecto o *Sin proyecto*. Se recuerda al reabrir. El número del ícono sigue contando todos |
 | **Copiar para Claude** | En cada grupo. Copia el endpoint exacto (curl a la API de Linear con el mismo filtro del grupo) y la lista con riesgo y "Listo cuando". Se pega en Claude para delegar el grupo |
-| **Linear ↗** | En cada grupo. Abre la misma búsqueda como vista personal de Linear (`¿Qué sigue? · <grupo>`); la crea la primera vez y después solo le cambia el filtro |
 | **Cinco por grupo** | Cada grupo enseña 5 y el resto detrás de "Ver N más" |
 | **Solo tus tareas** | Identifica a la persona por correo: el de Ajustes, si no el del perfil de Chrome, si no el dueño de la API key. El pie del popup dice de quién son |
 | **Issue nuevo** | Notificación de Chrome cuando te asignan uno (revisa cada 5 min). Clic lo abre. Más de 3 a la vez = una sola notificación |
@@ -47,6 +48,10 @@ La llave se guarda solo en `chrome.storage.local` de ese Chrome. No va en el
 código ni pasa por ningún servidor.
 
 ## Límites que conviene saber
+
+- **Para que el agente programe con Claude**, en Linear: Settings → AI & agents →
+  Cloud coding agent → Enabled, y el modelo en Claude. Sin eso, delegar solo
+  marca el issue. La extensión no crea nada más en Linear.
 
 - **Cada persona usa su propia API key.** Con una llave compartida verías las
   tareas del correo correcto, pero "Empezar" y "Mover a agente" quedarían en
@@ -91,8 +96,8 @@ de Chrome y tiene pruebas en `test/`. Sin build ni dependencias.
 |---|---|
 | `background.js` | Alarmas: revisar Linear, resumen diario, recordatorios, número del ícono |
 | `popup.*` | La ventana de la extensión |
-| `options.*` | API key, hora del resumen, equipos |
+| `options.*` | API key, hora del resumen, equipos, agente que hace las tareas |
 | `lib/estado.js` | Grupos, orden, semáforo, IDs de labels, filtro por proyecto |
-| `lib/consultas.js` | La regla de cada grupo como filtro de GraphQL (Copiar para Claude y vistas de Linear) |
+| `lib/consultas.js` | La regla de cada grupo como filtro de GraphQL (Copiar para Claude) |
 | `lib/schedule.js` | Próxima hora y parser de "10am …" |
 | `lib/linear.js` | GraphQL de Linear |

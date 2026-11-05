@@ -50,3 +50,11 @@ h2.con-consulta > span:first-child { flex: 1; }
 .consulta { display: inline-flex; gap: 4px; text-transform: none; letter-spacing: 0; }
 .consulta button { font-size: 11px; padding: 1px 6px; color: var(--suave); }
 .consulta-plegado { display: flex; justify-content: flex-end; padding: 4px 0; }
+.chip { flex: none; font-size: 10px; line-height: 1; padding: 3px 5px; border-radius: 4px; border: 1px solid var(--linea); color: var(--suave); white-space: nowrap; }
+.chip.p1 { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+.chip.p2 { border-color: #d9822b; color: #d9822b; }
+.chip.talla { font-weight: 600; color: var(--fg); }
+.elegir-riesgo { align-items: center; }
+button.riesgo.verde { border-color: var(--verde); color: var(--verde); }
+button.riesgo.amarillo { border-color: var(--amarillo); color: var(--amarillo); }
+button.riesgo.rojo { border-color: var(--rojo); color: var(--rojo); }
