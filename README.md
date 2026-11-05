@@ -18,6 +18,9 @@ Lee los labels que ya existen en el workspace (máquina de estados de
 | **No es para hoy** | Plegado, solo el número: *Esperando a otros* (Review o Block), *Después* (👤 en Backlog) y *Sin triage* (sin label o 🔍: se resuelve con `/triage-dia`) |
 | **Mover a agente** | Pone `🤖 listo-para-agente`. Si falta `📦 brief-incluido` o `riesgo`, no lo mueve y te dice que corras `/triage-dia` |
 | **Recordatorios** | Escribe arriba `10am revisar propuesta`, `a las 16:30 llamar`, `en 30 min mandar correo`. Una vez, diario o L a V. El ⏰ de cada issue lo prellena |
+| **Proyecto** | Selector arriba: Todos, un proyecto o *Sin proyecto*. Se recuerda al reabrir. El número del ícono sigue contando todos |
+| **Copiar para Claude** | En cada grupo. Copia el endpoint exacto (curl a la API de Linear con el mismo filtro del grupo) y la lista con riesgo y "Listo cuando". Se pega en Claude para delegar el grupo |
+| **Linear ↗** | En cada grupo. Abre la misma búsqueda como vista personal de Linear (`¿Qué sigue? · <grupo>`); la crea la primera vez y después solo le cambia el filtro |
 | **Cinco por grupo** | Cada grupo enseña 5 y el resto detrás de "Ver N más" |
 | **Solo tus tareas** | Identifica a la persona por correo: el de Ajustes, si no el del perfil de Chrome, si no el dueño de la API key. El pie del popup dice de quién son |
 | **Issue nuevo** | Notificación de Chrome cuando te asignan uno (revisa cada 5 min). Clic lo abre. Más de 3 a la vez = una sola notificación |
@@ -55,6 +58,8 @@ código ni pasa por ningún servidor.
   suenan al abrirlo.
 - Los recordatorios viven en ese Chrome, no en Linear: no se sincronizan entre
   computadoras.
+- Se traen hasta 2000 issues abiertos por persona. Si llegas al tope, el popup
+  lo dice.
 - "Días sin moverse" usa la última actualización del issue, no la fecha en que
   le pusieron el label.
 
@@ -68,7 +73,15 @@ npm test
 npm run empaquetar
 ```
 
-Arma el `.zip` para la tienda en `dist/`. `npm run capturas` deja las capturas
+Arma el `.zip` para la tienda en `dist/`.
+
+```bash
+LINEAR_API_KEY=lin_api_… node scripts/verificar-consultas.mjs [--correo x@y.com] [--proyecto <id|__sin__>] [--equipos INT,OP]
+```
+
+Corre la consulta de cada grupo contra Linear y la compara con lo que arma el
+popup. Solo lee. Si sale `FALLA`, `lib/consultas.js` y `clasificar` dejaron de
+decir lo mismo. `npm run capturas` deja las capturas
 de la ficha en `dist/tienda/`.
 
 La lógica (clasificar issues, entender horas) está en `lib/` sin dependencias
@@ -79,6 +92,7 @@ de Chrome y tiene pruebas en `test/`. Sin build ni dependencias.
 | `background.js` | Alarmas: revisar Linear, resumen diario, recordatorios, número del ícono |
 | `popup.*` | La ventana de la extensión |
 | `options.*` | API key, hora del resumen, equipos |
-| `lib/estado.js` | Grupos, orden, semáforo, IDs de labels |
+| `lib/estado.js` | Grupos, orden, semáforo, IDs de labels, filtro por proyecto |
+| `lib/consultas.js` | La regla de cada grupo como filtro de GraphQL (Copiar para Claude y vistas de Linear) |
 | `lib/schedule.js` | Próxima hora y parser de "10am …" |
 | `lib/linear.js` | GraphQL de Linear |

@@ -1,7 +1,8 @@
-import { clasificar, resumen, riesgo, puedeIrAAgente, labelsParaAgente } from './lib/estado.js';
+import { clasificar, resumen, riesgo, puedeIrAAgente, labelsParaAgente, proyectosDe, SIN_PROYECTO } from './lib/estado.js';
+import { filtroDeGrupo, textoParaClaude, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
-import { empezar, actualizar } from './lib/linear.js';
-import { config, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
+import { empezar, actualizar, vistaDeGrupo, TOPE } from './lib/linear.js';
+import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe, vistas, guardarVista } from './lib/store.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -119,10 +120,68 @@ function tarjetaAtorada(issue) {
     el('div', { class: 'acciones' }, botonRecordar(issue)));
 }
 
+/** Notas por issue que le sirven a Claude: riesgo, "Listo cuando" y días sin moverse. */
+function notasParaClaude(issue) {
+  const color = riesgo(issue);
+  const { listoCuando } = resumen(issue.description);
+  return [color && `riesgo ${color}`, listoCuando && `Listo cuando: ${listoCuando}`, issue.dias != null && `${issue.dias} d sin moverse`]
+    .filter(Boolean).join(' · ');
+}
+
+/**
+ * Los dos botones de la consulta de un grupo. `ctx` = persona, equipos y proyecto del popup.
+ * Copiar: endpoint exacto + lista, para pegar en Claude. Linear: abre la misma búsqueda como vista personal.
+ */
+function botonesDeConsulta(grupo, lista, ctx) {
+  if (!ctx.persona) return null;
+  const filtro = () => filtroDeGrupo(grupo, { personaId: ctx.persona.id, equipos: ctx.equipos, proyecto: ctx.proyecto });
+  // Dentro de <summary> un clic también abriría o cerraría el grupo.
+  const parar = (e) => { e.preventDefault(); e.stopPropagation(); };
+  return el('span', { class: 'consulta' },
+    el('button', {
+      title: 'Copiar el endpoint exacto y la lista para pegar en Claude',
+      onclick: async (e) => {
+        parar(e);
+        const texto = textoParaClaude({
+          grupo, persona: ctx.persona, proyectoNombre: ctx.proyectoNombre, equipos: ctx.equipos,
+          issues: lista, filtro: filtro(), extra: notasParaClaude,
+        });
+        try {
+          await navigator.clipboard.writeText(texto);
+          avisar(`${GRUPOS[grupo]}: consulta y ${lista.length} issues copiados. Pégalos en Claude.`, true);
+        } catch (err) {
+          avisar(`No pude copiar: ${err.message}`);
+        }
+      },
+    }, 'Copiar para Claude'),
+    el('button', {
+      title: 'Abrir esta misma búsqueda en Linear (vista personal)',
+      onclick: async (e) => {
+        parar(e);
+        // Un doble clic en el primer uso crearía dos vistas.
+        const boton = e.currentTarget;
+        if (boton.disabled) return;
+        boton.disabled = true;
+        try {
+          avisar('Armando la vista en Linear…', true);
+          const c = await config();
+          const vista = await vistaDeGrupo(c.llave, { nombre: `¿Qué sigue? · ${GRUPOS[grupo]}`, filtro: filtro(), vista: (await vistas())[grupo] });
+          await guardarVista(grupo, vista);
+          avisar('');
+          chrome.tabs.create({ url: vista.url });
+        } catch (err) {
+          avisar(err.message);
+        } finally {
+          boton.disabled = false;
+        }
+      },
+    }, 'Linear ↗'));
+}
+
 const VISIBLES = 5;
 
-/** Título + las primeras 5 tarjetas; el resto detrás de "ver N más". */
-function seccion(titulo, lista, tarjeta, vacio) {
+/** Título + las primeras 5 tarjetas; el resto detrás de "ver N más". `consulta` = botones del grupo. */
+function seccion(titulo, lista, tarjeta, vacio, consulta = null) {
   const caja = el('div');
   const pintarCaja = (todas) => {
     const mostrar = todas ? lista : lista.slice(0, VISIBLES);
@@ -133,14 +192,15 @@ function seccion(titulo, lista, tarjeta, vacio) {
   };
   if (lista.length) pintarCaja(false);
   else caja.append(el('p', { class: 'vacio' }, vacio));
-  return [el('h2', {}, `${titulo} (${lista.length})`), caja];
+  return [el('h2', { class: 'con-consulta' }, el('span', {}, `${titulo} (${lista.length})`), consulta), caja];
 }
 
 /** Grupo que no es para hoy: una línea plegada con lista compacta adentro. */
-function plegado(titulo, lista, nota) {
+function plegado(titulo, lista, nota, consulta = null) {
   if (!lista.length) return null;
   return el('details', { class: 'plegado' },
     el('summary', {}, el('b', {}, `${titulo} (${lista.length})`), nota ? ` · ${nota}` : ''),
+    consulta ? el('div', { class: 'consulta-plegado' }, consulta) : null,
     ...lista.map((i) => el('div', { class: 'compacto' },
       el('span', { class: 'id' }, i.identifier),
       el('a', { href: i.url, target: '_blank' }, i.title),
@@ -161,21 +221,56 @@ async function pintarAhora() {
     main.append(el('p', { class: 'vacio' }, 'Cargando…'));
     return;
   }
-  const g = clasificar(datos.issues, { equipos: equiposDe(c) });
-  main.append(
+  const equipos = equiposDe(c);
+  const { lista: proyectos, sinProyecto } = proyectosDe(contados(datos.issues, equipos));
+  // Si el proyecto guardado ya no trae issues tuyos, se vuelve a "Todos".
+  const vigente = c.proyecto === SIN_PROYECTO ? sinProyecto > 0 : proyectos.some((p) => p.id === c.proyecto);
+  const proyecto = vigente ? c.proyecto : '';
+  const proyectoNombre = proyecto === SIN_PROYECTO ? 'sin proyecto' : proyectos.find((p) => p.id === proyecto)?.name || '';
+  const ctx = { persona: datos.persona, equipos, proyecto, proyectoNombre };
+  const g = clasificar(datos.issues, { equipos, proyecto });
+  const consulta = (grupo) => botonesDeConsulta(grupo, g[grupo], ctx);
+  // append() pinta `null` como texto: lo vacío se quita antes.
+  main.append(...[
+    selectorDeProyecto(proyectos, sinProyecto, proyecto),
     el('h2', {}, 'Lo siguiente'),
-    g.siguiente ? tarjetaTuya(g.siguiente, true) : el('p', { class: 'vacio' }, 'Nada tuyo para hoy.'),
-    ...seccion('Ahora', g.ahora.slice(1), (i) => tarjetaTuya(i), 'Nada más.'),
-    ...seccion('Para agente', g.agente, tarjetaAgente, 'Nada listo para soltar.'),
-    ...seccion('Esperan info', g.info, tarjetaAtorada, 'Nada esperando respuesta.'),
+    g.siguiente ? tarjetaTuya(g.siguiente, true) : el('p', { class: 'vacio' }, proyecto ? 'Nada tuyo para hoy en este proyecto.' : 'Nada tuyo para hoy.'),
+    // La consulta de "Ahora" trae también "Lo siguiente": es el mismo grupo.
+    ...seccion('Ahora', g.ahora.slice(1), (i) => tarjetaTuya(i), 'Nada más.', consulta('ahora')),
+    ...seccion('Para agente', g.agente, tarjetaAgente, 'Nada listo para soltar.', consulta('agente')),
+    ...seccion('Esperan info', g.info, tarjetaAtorada, 'Nada esperando respuesta.', consulta('info')),
     el('h2', {}, 'No es para hoy'),
-    plegado('Esperando a otros', g.esperando, 'review o block, más viejo primero'),
-    plegado('Después', g.despues, '👤 en Backlog'),
-    plegado('Sin triage', g.sinTriage, 'corre /triage-dia'),
+    plegado('Esperando a otros', g.esperando, 'review o block, más viejo primero', consulta('esperando')),
+    plegado('Después', g.despues, '👤 en Backlog', consulta('despues')),
+    plegado('Sin triage', g.sinTriage, 'corre /triage-dia', consulta('sinTriage')),
     el('p', { class: 'meta' },
       datos.persona ? `Tareas de ${datos.persona.name} (${datos.persona.email}) · ` : '',
-      `Revisado ${new Date(datos.at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} · ${datos.issues.length} abiertos`)
-  );
+      `Revisado ${new Date(datos.at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} · ${datos.issues.length} abiertos`),
+    datos.issues.length >= TOPE
+      ? el('p', { class: 'aviso' }, `Llegaste al tope de ${TOPE} issues: puede faltar alguno. Cierra o cancela los viejos en Linear.`)
+      : null,
+  ].filter(Boolean));
+}
+
+/** Los issues que el popup cuenta con el filtro de equipos y sin el de proyecto: de ahí salen las opciones. */
+function contados(issues, equipos) {
+  const g = clasificar(issues, { equipos });
+  return [...g.ahora, ...g.agente, ...g.info, ...g.esperando, ...g.despues, ...g.sinTriage];
+}
+
+function selectorDeProyecto(proyectos, sinProyecto, actual) {
+  if (!proyectos.length && !sinProyecto) return null;
+  const opcion = (value, texto) => el('option', { value, selected: value === actual ? 'selected' : false }, texto);
+  return el('label', { class: 'proyecto' }, 'Proyecto',
+    el('select', {
+      onchange: async (e) => {
+        await guardarConfig({ proyecto: e.target.value });
+        await pintarAhora();
+      },
+    },
+    opcion('', 'Todos'),
+    ...proyectos.map((p) => opcion(p.id, `${p.name} (${p.n})`)),
+    sinProyecto ? opcion(SIN_PROYECTO, `Sin proyecto (${sinProyecto})`) : null));
 }
 
 const REPETIR = { no: '', diario: ' · diario', laborables: ' · L a V' };
