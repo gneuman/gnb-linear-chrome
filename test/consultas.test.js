@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { clasificar, proyectosDe, LABEL, SIN_PROYECTO } from '../lib/estado.js';
-import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from '../lib/consultas.js';
+import { filtroDeGrupo, textoParaClaude, textoDeIssue, repoDe, GRUPOS } from '../lib/consultas.js';
 
 // Evalúa en memoria el subconjunto de IssueFilter que usa consultas.js, con la semántica de Linear.
 // Sirve para probar que la consulta y `clasificar` dicen lo mismo sin llamar a la API.
@@ -159,4 +159,22 @@ test('textoDeIssue sin rama, sin descripción ni riesgo no truena', () => {
   assert.match(texto, /sin riesgo/);
   assert.match(texto, /\(sin descripción\)/);
   assert.doesNotMatch(texto, /Proyecto:/);
+});
+
+test('repoDe: primero lo ligado al issue, luego el link del proyecto, nunca inventado', () => {
+  const proyecto = { name: 'PostLeads', externalLinks: { nodes: [{ url: 'https://publicaciones.gnb.mx' }, { url: 'https://github.com/gneuman/postleads' }] } };
+  assert.equal(repoDe({ project: proyecto }), 'gneuman/postleads', 'del proyecto');
+  assert.equal(repoDe({ attachments: { nodes: [{ url: 'https://github.com/gneuman/gnb-crm/pull/613' }] }, project: proyecto }), 'gneuman/gnb-crm', 'el del issue gana');
+  assert.equal(repoDe({ attachments: { nodes: [{ url: 'https://github.com/gneuman/x.git' }] } }), 'gneuman/x');
+  assert.equal(repoDe({ attachments: { nodes: [{ url: 'https://figma.com/a' }] }, project: { externalLinks: { nodes: [] } } }), null);
+  assert.equal(repoDe({}), null);
+  const raros = ['https://github.com/orgs/gneuman/projects/3', 'https://github.com/settings/tokens', 'https://gist.github.com/gneuman/abc', 'https://api.github.com/repos/o/r'];
+  assert.equal(repoDe({ attachments: { nodes: raros.map((url) => ({ url })) }, project: proyecto }), 'gneuman/postleads', 'lo que no es repo no tapa al del proyecto');
+  assert.equal(repoDe({ attachments: { nodes: [{ url: 'https://GitHub.com/gneuman/X/tree/main?a=1#b' }] } }), 'gneuman/X');
+});
+
+test('textoDeIssue dice el repo, o que falta en Linear', () => {
+  const base = { identifier: 'INT-1', title: 't', url: 'u', priority: 0, state: { name: 'Todo' }, labels: { nodes: [] } };
+  assert.match(textoDeIssue({ ...base, attachments: { nodes: [{ url: 'https://github.com/gneuman/postleads/pull/9' }] } }), /- Repo: gneuman\/postleads \(https:\/\/github\.com\/gneuman\/postleads\)/);
+  assert.match(textoDeIssue(base), /- Repo: no está en Linear/);
 });
