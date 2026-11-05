@@ -69,3 +69,12 @@ test('nuevos: avisa solo lo que no estaba, nunca en la primera revisión', () =>
   assert.deepEqual(nuevos(['OP-1', 'OP-2'], issues).map((i) => i.id), ['OP-3']);
   assert.deepEqual(nuevos(['OP-1', 'OP-2', 'OP-3', 'OP-9'], issues), [], 'uno que se cerró no avisa');
 });
+
+test('riesgo: el label de color dentro del grupo riesgo, como está en Linear', () => {
+  const conGrupo = issue('Z', { labels: { nodes: [{ id: 'v', name: 'verde', parent: { name: 'riesgo' } }] } });
+  assert.equal(riesgo(conGrupo), 'verde');
+  assert.equal(riesgo(issue('Z2', { labels: { nodes: [{ id: 'r', name: 'Rojo' }] } })), 'rojo', 'el color solo, sin grupo');
+  assert.equal(riesgo(issue('Z3', { labels: { nodes: [{ id: 'x', name: 'verde-limón', parent: { name: 'marca' } }] } })), null);
+  const listo = issue('Z4', { labels: { nodes: [lab(LABEL.brief), { id: 'a', name: 'amarillo', parent: { name: 'riesgo' } }] } });
+  assert.equal(puedeIrAAgente(listo).ok, true, 'con brief y color ya se puede mover a agente');
+});
