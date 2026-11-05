@@ -168,6 +168,9 @@ test('repoDe: primero lo ligado al issue, luego el link del proyecto, nunca inve
   assert.equal(repoDe({ attachments: { nodes: [{ url: 'https://github.com/gneuman/x.git' }] } }), 'gneuman/x');
   assert.equal(repoDe({ attachments: { nodes: [{ url: 'https://figma.com/a' }] }, project: { externalLinks: { nodes: [] } } }), null);
   assert.equal(repoDe({}), null);
+  const raros = ['https://github.com/orgs/gneuman/projects/3', 'https://github.com/settings/tokens', 'https://gist.github.com/gneuman/abc', 'https://api.github.com/repos/o/r'];
+  assert.equal(repoDe({ attachments: { nodes: raros.map((url) => ({ url })) }, project: proyecto }), 'gneuman/postleads', 'lo que no es repo no tapa al del proyecto');
+  assert.equal(repoDe({ attachments: { nodes: [{ url: 'https://GitHub.com/gneuman/X/tree/main?a=1#b' }] } }), 'gneuman/X');
 });
 
 test('textoDeIssue dice el repo, o que falta en Linear', () => {
