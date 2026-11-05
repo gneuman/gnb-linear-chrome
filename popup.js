@@ -115,12 +115,36 @@ function tarjetaAtorada(issue) {
   const dias = issue.dias == null ? '' : ` · ${issue.dias} d sin moverse`;
   return el('div', { class: 'item' },
     cabecera(issue),
-    el('div', { class: 'meta' }, `${issue.motivo}${dias}`),
+    el('div', { class: 'meta' }, `${meta(issue)}${dias}`),
     el('div', { class: 'acciones' }, botonRecordar(issue)));
 }
 
+const VISIBLES = 5;
+
+/** Título + las primeras 5 tarjetas; el resto detrás de "ver N más". */
 function seccion(titulo, lista, tarjeta, vacio) {
-  return [el('h2', {}, `${titulo} (${lista.length})`), ...(lista.length ? lista.map(tarjeta) : [el('p', { class: 'vacio' }, vacio)])];
+  const caja = el('div');
+  const pintarCaja = (todas) => {
+    const mostrar = todas ? lista : lista.slice(0, VISIBLES);
+    caja.replaceChildren(...mostrar.map(tarjeta));
+    if (lista.length > VISIBLES) {
+      caja.append(el('button', { class: 'mas', onclick: () => pintarCaja(!todas) }, todas ? 'Ver menos' : `Ver ${lista.length - VISIBLES} más`));
+    }
+  };
+  if (lista.length) pintarCaja(false);
+  else caja.append(el('p', { class: 'vacio' }, vacio));
+  return [el('h2', {}, `${titulo} (${lista.length})`), caja];
+}
+
+/** Grupo que no es para hoy: una línea plegada con lista compacta adentro. */
+function plegado(titulo, lista, nota) {
+  if (!lista.length) return null;
+  return el('details', { class: 'plegado' },
+    el('summary', {}, el('b', {}, `${titulo} (${lista.length})`), nota ? ` · ${nota}` : ''),
+    ...lista.map((i) => el('div', { class: 'compacto' },
+      el('span', { class: 'id' }, i.identifier),
+      el('a', { href: i.url, target: '_blank' }, i.title),
+      i.dias != null ? el('span', { class: 'id' }, `${i.dias} d`) : null)));
 }
 
 async function pintarAhora() {
@@ -140,11 +164,15 @@ async function pintarAhora() {
   const g = clasificar(datos.issues, { equipos: equiposDe(c) });
   main.append(
     el('h2', {}, 'Lo siguiente'),
-    g.siguiente ? tarjetaTuya(g.siguiente, true) : el('p', { class: 'vacio' }, 'Nada tuyo pendiente. Revisa los atorados.'),
-    ...seccion('Tuyos', g.tuyos.slice(1), (i) => tarjetaTuya(i), 'Nada más.'),
+    g.siguiente ? tarjetaTuya(g.siguiente, true) : el('p', { class: 'vacio' }, 'Nada tuyo para hoy.'),
+    ...seccion('Ahora', g.ahora.slice(1), (i) => tarjetaTuya(i), 'Nada más.'),
     ...seccion('Para agente', g.agente, tarjetaAgente, 'Nada listo para soltar.'),
-    ...seccion('Atorados', g.atorados, tarjetaAtorada, 'Nada atorado.'),
-    el('p', { class: 'meta' }, `Revisado ${new Date(datos.at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`)
+    ...seccion('Esperan info', g.info, tarjetaAtorada, 'Nada esperando respuesta.'),
+    el('h2', {}, 'No es para hoy'),
+    plegado('Esperando a otros', g.esperando, 'review o block, más viejo primero'),
+    plegado('Después', g.despues, '👤 en Backlog'),
+    plegado('Sin triage', g.sinTriage, 'corre /triage-dia'),
+    el('p', { class: 'meta' }, `Revisado ${new Date(datos.at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} · ${datos.issues.length} abiertos`)
   );
 }
 

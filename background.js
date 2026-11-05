@@ -62,8 +62,9 @@ async function pintarNumero() {
     chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
     return;
   }
-  const { tuyos } = clasificar(cache.issues, { equipos: equiposDe(c) });
-  const n = tuyos.length + vencidos;
+  // Solo cuenta lo de "Ahora": lo que esperas de otros o falta triar no es para hoy.
+  const { ahora } = clasificar(cache.issues, { equipos: equiposDe(c) });
+  const n = ahora.length + vencidos;
   chrome.action.setBadgeText({ text: n ? String(n) : '' });
   chrome.action.setBadgeBackgroundColor({ color: vencidos ? '#c0392b' : '#5e6ad2' });
 }
@@ -80,7 +81,7 @@ async function mandarResumen() {
     iconUrl: ICONO,
     title: 'Hoy',
     message:
-      `${g.tuyos.length} tuyos, ${g.agente.length} para agente, ${g.atorados.length} atorados` +
+      `${g.ahora.length} para hoy, ${g.agente.length} para agente, ${g.info.length} esperando info` +
       (hoy ? `, ${hoy} recordatorios` : '') +
       (g.siguiente ? `\nSigue: ${g.siguiente.identifier} ${g.siguiente.title}` : ''),
   });

@@ -12,12 +12,14 @@ Lee los labels que ya existen en el workspace (máquina de estados de
 | Pieza | Qué ves |
 |---|---|
 | **Lo siguiente** | Tu issue más urgente: primero lo que ya está en curso, luego prioridad y fecha. Resumen de 2 líneas y el "Listo cuando" |
-| **Tuyos** | `👤 listo-para-humano` + todo lo `In Progress`. Botón **Empezar** (lo pasa a In Progress y lo abre) |
-| **Para agente** | `🤖 listo-para-agente`, con su color de riesgo y quién fusiona |
-| **Atorados** | `❓ necesita-info`, `🔍 necesita-triage` o sin label, con días sin moverse |
+| **Ahora** | `In Progress` + `👤 listo-para-humano` en Todo/Triage. Botón **Empezar** (lo pasa a In Progress y lo abre) |
+| **Para agente** | `🤖 listo-para-agente` sin empezar, con su color de riesgo y quién fusiona |
+| **Esperan info** | `❓ necesita-info`, con días sin moverse |
+| **No es para hoy** | Plegado, solo el número: *Esperando a otros* (Review o Block), *Después* (👤 en Backlog) y *Sin triage* (sin label o 🔍: se resuelve con `/triage-dia`) |
 | **Mover a agente** | Pone `🤖 listo-para-agente`. Si falta `📦 brief-incluido` o `riesgo`, no lo mueve y te dice que corras `/triage-dia` |
 | **Recordatorios** | Escribe arriba `10am revisar propuesta`, `a las 16:30 llamar`, `en 30 min mandar correo`. Una vez, diario o L a V. El ⏰ de cada issue lo prellena |
-| **Ícono** | Número = tuyos + recordatorios que ya sonaron. Revisa Linear cada 15 min |
+| **Cinco por grupo** | Cada grupo enseña 5 y el resto detrás de "Ver N más" |
+| **Ícono** | Número = lo de **Ahora** + recordatorios que ya sonaron. Revisa Linear cada 15 min |
 | **Resumen diario** | Notificación a la hora que elijas (9:00 por omisión) |
 
 Los recordatorios suenan con notificación de Chrome con **Posponer 10 min** y

@@ -8,20 +8,28 @@ const issue = (id, extra = {}) => ({
   state: { type: 'unstarted', name: 'Todo' }, labels: { nodes: [] }, ...extra,
 });
 
-test('agrupa en tuyos, agente y atorados', () => {
+test('agrupa: ahora, agente, info, esperando, después y sin triage', () => {
   const issues = [
     issue('OP-1', { labels: { nodes: [lab(LABEL.humano)] }, priority: 3 }),
     issue('OP-2', { state: { type: 'started', name: 'In Progress' }, priority: 4 }),
     issue('OP-3', { labels: { nodes: [lab(LABEL.agente)] } }),
     issue('OP-4', { labels: { nodes: [lab(LABEL.info)] }, updatedAt: '2026-11-01T00:00:00Z' }),
     issue('OP-5'),
+    issue('OP-6', { state: { type: 'started', name: 'External Review' }, labels: { nodes: [lab(LABEL.agente)] } }),
+    issue('OP-7', { state: { type: 'started', name: 'External Block' } }),
+    issue('OP-8', { state: { type: 'backlog', name: 'Backlog' }, labels: { nodes: [lab(LABEL.humano)] } }),
+    issue('OP-9', { state: { type: 'duplicate', name: 'Duplicate' } }),
   ];
   const g = clasificar(issues, { ahora: Date.parse('2026-11-05T00:00:00Z') });
-  assert.deepEqual(g.tuyos.map((i) => i.id), ['OP-2', 'OP-1']);
+  const ids = (l) => l.map((i) => i.id);
+  assert.deepEqual(ids(g.ahora), ['OP-2', 'OP-1']);
   assert.equal(g.siguiente.id, 'OP-2', 'lo que ya empezaste va primero');
-  assert.deepEqual(g.agente.map((i) => i.id), ['OP-3']);
-  assert.deepEqual(g.atorados.map((i) => [i.id, i.motivo]), [['OP-4', 'necesita info'], ['OP-5', 'necesita triage']]);
-  assert.equal(g.atorados[0].dias, 4);
+  assert.deepEqual(ids(g.agente), ['OP-3']);
+  assert.deepEqual(ids(g.info), ['OP-4']);
+  assert.equal(g.info[0].dias, 4);
+  assert.deepEqual(ids(g.esperando).sort(), ['OP-6', 'OP-7'], 'review y block no son para hoy');
+  assert.deepEqual(ids(g.despues), ['OP-8']);
+  assert.deepEqual(ids(g.sinTriage), ['OP-5']);
 });
 
 test('ordena por prioridad, sin prioridad al final, luego fecha', () => {
@@ -32,12 +40,12 @@ test('ordena por prioridad, sin prioridad al final, luego fecha', () => {
     issue('C', { labels: { nodes: h }, priority: 2, dueDate: '2026-11-10' }),
     issue('D', { labels: { nodes: h }, priority: 1 }),
   ]);
-  assert.deepEqual(g.tuyos.map((i) => i.id), ['D', 'C', 'B', 'A']);
+  assert.deepEqual(g.ahora.map((i) => i.id), ['D', 'C', 'B', 'A']);
 });
 
 test('filtra por equipo', () => {
   const g = clasificar([issue('OP-1', { labels: { nodes: [lab(LABEL.humano)] } }), issue('INT-1', { team: { key: 'INT' }, labels: { nodes: [lab(LABEL.humano)] } })], { equipos: ['int'] });
-  assert.deepEqual(g.tuyos.map((i) => i.id), ['INT-1']);
+  assert.deepEqual(g.ahora.map((i) => i.id), ['INT-1']);
 });
 
 test('a agente solo con brief y riesgo', () => {
