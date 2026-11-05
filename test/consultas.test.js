@@ -148,12 +148,14 @@ test('textoDeIssue: un issue listo para pegar en Claude, con la rama exacta de L
   assert.match(texto, /In Progress · prioridad urgente · talla M · riesgo verde · vence 2026-10-16/);
   assert.match(texto, /- Proyecto: Coach G/);
   assert.match(texto, /Listo cuando: las consultas filtran por tenantId/, 'la descripción va completa');
-  assert.match(texto, /git worktree add -b gneuman\/int-1476-separar-el-contenido \/c\/tmp\/wt-int-1476 origin\/main/);
+  assert.match(texto, /git worktree add -b gneuman\/int-1476-separar-el-contenido \/c\/tmp\/wt-int-1476 origin\/main/, 'rama nueva');
+  assert.match(texto, /git worktree add \/c\/tmp\/wt-int-1476 gneuman\/int-1476-separar-el-contenido`/, 'rama que ya existe');
 });
 
 test('textoDeIssue sin rama, sin descripción ni riesgo no truena', () => {
-  const texto = textoDeIssue({ identifier: 'OP-9', title: 't', url: 'u', priority: 0, state: { name: 'Todo' }, labels: { nodes: [] } });
-  assert.match(texto, /- Rama: `gneuman\/op-9`/);
+  const texto = textoDeIssue({ identifier: 'OP-9', title: 't', url: 'u', priority: 0, state: { name: 'Todo' }, labels: { nodes: [] }, description: '   ' });
+  assert.match(texto, /- Rama: cópiala de Linear/, 'sin branchName no inventa una rama');
+  assert.doesNotMatch(texto, /gneuman\/op-9/);
   assert.match(texto, /sin riesgo/);
   assert.match(texto, /\(sin descripción\)/);
   assert.doesNotMatch(texto, /Proyecto:/);

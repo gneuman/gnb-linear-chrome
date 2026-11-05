@@ -18,7 +18,7 @@ Lee los labels que ya existen en el workspace (máquina de estados de
 | **No es para hoy** | Plegado, solo el número: *Esperando a otros* (Review o Block), *Después* (👤 en Backlog) y *Sin triage* (sin label o 🔍: se resuelve con `/triage-dia`) |
 | **Mover a agente** | Pone `🤖 listo-para-agente`, quita el 👤, lo regresa a Todo si estaba en curso y **se lo delega al agente de Ajustes** (Linear por omisión) para que lo haga. Si no tiene riesgo, te pide el color ahí mismo |
 | **Delegar al agente** | En *Para agente*, los que tienen 🤖 pero nadie trabaja. Un clic y el agente lo toma. Los delegados dicen "🤖 Linear lo trabaja" |
-| **Copiar para Claude (issue)** | En cada tarjeta. Copia ese issue listo para pegar en una sesión de Claude: link, rama exacta de Linear, estado, prioridad, talla, riesgo, descripción completa y cómo arrancar (worktree) |
+| **Copiar issue** | En cada tarjeta. Copia ese issue listo para pegar en una sesión de Claude: link, rama exacta de Linear, estado, prioridad, talla, riesgo, descripción completa y cómo arrancar (worktree) |
 | **Tamaño y prioridad** | Cada issue enseña su prioridad (Urgente en rojo, Alta en naranja) y su talla (XS–XL) |
 | **Recordatorios** | Escribe arriba `10am revisar propuesta`, `a las 16:30 llamar`, `en 30 min mandar correo`. Una vez, diario o L a V. El ⏰ de cada issue lo prellena |
 | **Proyecto** | Selector arriba: Todos, un proyecto o *Sin proyecto*. Se recuerda al reabrir. El número del ícono sigue contando todos |

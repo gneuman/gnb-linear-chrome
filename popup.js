@@ -76,7 +76,7 @@ function botonCopiar(issue) {
         avisar(`No pude copiar: ${err.message}`);
       }
     },
-  }, 'Copiar para Claude');
+  }, 'Copiar issue');
 }
 
 async function accion(fn, okTexto) {
