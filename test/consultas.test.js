@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { clasificar, proyectosDe, LABEL, SIN_PROYECTO } from '../lib/estado.js';
-import { filtroDeGrupo, textoParaClaude, GRUPOS } from '../lib/consultas.js';
+import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from '../lib/consultas.js';
 
 // Evalúa en memoria el subconjunto de IssueFilter que usa consultas.js, con la semántica de Linear.
 // Sirve para probar que la consulta y `clasificar` dicen lo mismo sin llamar a la API.
@@ -132,4 +132,31 @@ test('una comilla simple en un valor no rompe el curl', () => {
   const argumento = texto.match(/-d ('.*')$/m)[1];
   const cuerpo = execFileSync('bash', ['-c', `printf '%s' ${argumento}`]).toString();
   assert.deepEqual(JSON.parse(cuerpo).variables.filtro, filtro);
+});
+
+test('textoDeIssue: un issue listo para pegar en Claude, con la rama exacta de Linear', () => {
+  const texto = textoDeIssue({
+    identifier: 'INT-1476', title: 'Separar el contenido por tenant', url: 'https://linear.app/gnb-labs/issue/INT-1476',
+    branchName: 'gneuman/int-1476-separar-el-contenido', priority: 1, estimate: 3, dueDate: '2026-10-16',
+    state: { name: 'In Progress' }, project: { name: 'Coach G' },
+    labels: { nodes: [{ id: 'v', name: 'verde', parent: { name: 'riesgo' } }] },
+    description: 'TL;DR separar.\n\nListo cuando: las consultas filtran por tenantId',
+  });
+  assert.match(texto, /^# Trabajemos INT-1476: Separar el contenido por tenant/);
+  assert.match(texto, /- Linear: https:\/\/linear\.app\/gnb-labs\/issue\/INT-1476/);
+  assert.match(texto, /- Rama: `gneuman\/int-1476-separar-el-contenido`/);
+  assert.match(texto, /In Progress · prioridad urgente · talla M · riesgo verde · vence 2026-10-16/);
+  assert.match(texto, /- Proyecto: Coach G/);
+  assert.match(texto, /Listo cuando: las consultas filtran por tenantId/, 'la descripción va completa');
+  assert.match(texto, /git worktree add -b gneuman\/int-1476-separar-el-contenido \/c\/tmp\/wt-int-1476 origin\/main/, 'rama nueva');
+  assert.match(texto, /git worktree add \/c\/tmp\/wt-int-1476 gneuman\/int-1476-separar-el-contenido`/, 'rama que ya existe');
+});
+
+test('textoDeIssue sin rama, sin descripción ni riesgo no truena', () => {
+  const texto = textoDeIssue({ identifier: 'OP-9', title: 't', url: 'u', priority: 0, state: { name: 'Todo' }, labels: { nodes: [] }, description: '   ' });
+  assert.match(texto, /- Rama: cópiala de Linear/, 'sin branchName no inventa una rama');
+  assert.doesNotMatch(texto, /gneuman\/op-9/);
+  assert.match(texto, /sin riesgo/);
+  assert.match(texto, /\(sin descripción\)/);
+  assert.doesNotMatch(texto, /Proyecto:/);
 });

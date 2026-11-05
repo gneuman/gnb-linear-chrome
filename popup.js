@@ -1,5 +1,5 @@
 import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO } from './lib/estado.js';
-import { filtroDeGrupo, textoParaClaude, GRUPOS } from './lib/consultas.js';
+import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
 import { empezar, moverAAgente, TOPE } from './lib/linear.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
@@ -64,6 +64,21 @@ function botonRecordar(issue) {
   }, '⏰');
 }
 
+/** Copia este issue listo para pegar en Claude y ponerse a trabajar: rama, descripción y cómo arrancar. */
+function botonCopiar(issue) {
+  return el('button', {
+    title: 'Copiar este issue para pegarlo en una sesión de Claude',
+    onclick: async () => {
+      try {
+        await navigator.clipboard.writeText(textoDeIssue(issue));
+        avisar(`${issue.identifier} copiado. Pégalo en Claude.`, true);
+      } catch (err) {
+        avisar(`No pude copiar: ${err.message}`);
+      }
+    },
+  }, 'Copiar issue');
+}
+
 async function accion(fn, okTexto) {
   try {
     avisar('Guardando en Linear…', true);
@@ -98,6 +113,7 @@ function tarjetaTuya(issue, grande = false) {
               }, `${issue.identifier} → In Progress`);
             },
           }, 'Empezar'),
+      botonCopiar(issue),
       botonAgente(issue),
       botonRecordar(issue)));
 }
@@ -149,7 +165,9 @@ function tarjetaAgente(issue) {
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)} · ${nota}`),
     // Los que ya tienen 🤖 pero nadie los trabaja: un clic para que el agente los tome.
-    issue.delegate || !ajustes.agente ? null : el('div', { class: 'acciones' }, botonAgente(issue, `Delegar a ${ajustes.agente}`)));
+    el('div', { class: 'acciones' },
+      botonCopiar(issue),
+      issue.delegate || !ajustes.agente ? null : botonAgente(issue, `Delegar a ${ajustes.agente}`)));
 }
 
 function tarjetaAtorada(issue) {
@@ -157,7 +175,7 @@ function tarjetaAtorada(issue) {
   return el('div', { class: 'item' },
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)}${dias}`),
-    el('div', { class: 'acciones' }, botonRecordar(issue)));
+    el('div', { class: 'acciones' }, botonCopiar(issue), botonRecordar(issue)));
 }
 
 /** Notas por issue que le sirven a Claude: riesgo, "Listo cuando" y días sin moverse. */
