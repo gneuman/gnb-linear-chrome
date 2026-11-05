@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { clasificar, proyectosDe, LABEL, SIN_PROYECTO } from '../lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, GRUPOS } from '../lib/consultas.js';
 
@@ -120,4 +121,13 @@ test('el texto para Claude trae el curl con el filtro exacto y la lista', () => 
   const cuerpo = JSON.parse(texto.match(/-d '(.*)'/)[1]);
   assert.deepEqual(cuerpo.variables.filtro, filtro, 'el filtro del curl es el mismo del grupo');
   assert.doesNotMatch(texto, /lin_api_/, 'nunca la llave');
+});
+
+test('una comilla simple en un valor no rompe el curl', () => {
+  const filtro = filtroDeGrupo('ahora', { personaId: P, equipos: ["O'P"] });
+  const texto = textoParaClaude({ grupo: 'ahora', persona: { name: 'Ana', email: 'a@b.mx' }, filtro, issues: [] });
+  // Lo que bash le pasa a curl después de quitar las comillas.
+  const argumento = texto.match(/-d ('.*')$/m)[1];
+  const cuerpo = execFileSync('bash', ['-c', `printf '%s' ${argumento}`]).toString();
+  assert.deepEqual(JSON.parse(cuerpo).variables.filtro, filtro);
 });

@@ -1,7 +1,7 @@
 // Corre la consulta de cada grupo contra Linear y la compara con lo que arma el popup.
 // Uso: LINEAR_API_KEY=... node scripts/verificar-consultas.mjs [--correo x@y.com] [--proyecto <id|__sin__>] [--equipos INT,OP]
 // Solo lee: no crea ni cambia nada en Linear.
-import { gql, resolverPersona, issuesDe } from '../lib/linear.js';
+import { gql, resolverPersona, issuesDe, TOPE } from '../lib/linear.js';
 import { clasificar } from '../lib/estado.js';
 import { filtroDeGrupo, GRUPOS } from '../lib/consultas.js';
 
@@ -24,10 +24,10 @@ const g = clasificar(issues, { equipos, proyecto });
 async function porConsulta(filtro) {
   const ids = [];
   let despues = null;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < TOPE / 250; i++) {
     const data = await gql(
       llave,
-      `query($filtro: IssueFilter, $despues: String) { issues(first: 100, after: $despues, filter: $filtro) { nodes { identifier } pageInfo { hasNextPage endCursor } } }`,
+      `query($filtro: IssueFilter, $despues: String) { issues(first: 250, after: $despues, filter: $filtro) { nodes { identifier } pageInfo { hasNextPage endCursor } } }`,
       { filtro, despues }
     );
     ids.push(...data.issues.nodes.map((n) => n.identifier));

@@ -158,6 +158,10 @@ function botonesDeConsulta(grupo, lista, ctx) {
       title: 'Abrir esta misma búsqueda en Linear (vista personal)',
       onclick: async (e) => {
         parar(e);
+        // Un doble clic en el primer uso crearía dos vistas.
+        const boton = e.currentTarget;
+        if (boton.disabled) return;
+        boton.disabled = true;
         try {
           avisar('Armando la vista en Linear…', true);
           const c = await config();
@@ -167,6 +171,8 @@ function botonesDeConsulta(grupo, lista, ctx) {
           chrome.tabs.create({ url: vista.url });
         } catch (err) {
           avisar(err.message);
+        } finally {
+          boton.disabled = false;
         }
       },
     }, 'Linear ↗'));
