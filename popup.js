@@ -1,8 +1,8 @@
-import { clasificar, resumen, riesgo, puedeIrAAgente, labelsParaAgente, proyectosDe, SIN_PROYECTO } from './lib/estado.js';
+import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
-import { empezar, actualizar, vistaDeGrupo, TOPE } from './lib/linear.js';
-import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe, vistas, guardarVista } from './lib/store.js';
+import { empezar, moverAAgente, TOPE } from './lib/linear.js';
+import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -28,9 +28,19 @@ function avisar(texto, ok = false) {
 const PRIORIDAD = ['', 'Urgente', 'Alta', 'Media', 'Baja'];
 
 function meta(issue) {
-  const partes = [issue.team?.key, issue.state?.name, PRIORIDAD[issue.priority]];
+  const partes = [issue.team?.key, issue.state?.name];
   if (issue.dueDate) partes.push(`vence ${issue.dueDate}`);
+  if (issue.delegate) partes.push(`🤖 ${issue.delegate.name} lo trabaja`);
   return partes.filter(Boolean).join(' · ');
+}
+
+/** Importancia y tamaño de un vistazo: prioridad con color y talla (XS–XL). */
+function chips(issue) {
+  const t = talla(issue);
+  return [
+    issue.priority ? el('span', { class: `chip p${issue.priority}`, title: `Prioridad ${PRIORIDAD[issue.priority].toLowerCase()}` }, PRIORIDAD[issue.priority]) : null,
+    t ? el('span', { class: 'chip talla', title: 'Tamaño (estimación)' }, t) : null,
+  ];
 }
 
 function cabecera(issue) {
@@ -38,7 +48,8 @@ function cabecera(issue) {
   return el('div', { class: 'fila' },
     el('span', { class: `punto ${color || ''}`, title: color ? `riesgo ${color}` : 'sin riesgo' }),
     el('span', { class: 'id' }, issue.identifier),
-    el('span', { class: 'titulo' }, el('a', { href: issue.url, target: '_blank' }, issue.title)));
+    el('span', { class: 'titulo' }, el('a', { href: issue.url, target: '_blank' }, issue.title)),
+    ...chips(issue));
 }
 
 function botonRecordar(issue) {
@@ -57,7 +68,7 @@ async function accion(fn, okTexto) {
   try {
     avisar('Guardando en Linear…', true);
     await fn();
-    avisar(okTexto, true);
+    avisar(typeof okTexto === 'function' ? okTexto() : okTexto, true);
     await chrome.runtime.sendMessage({ tipo: 'refrescar' });
     await pintar();
   } catch (e) {
@@ -91,25 +102,54 @@ function tarjetaTuya(issue, grande = false) {
       botonRecordar(issue)));
 }
 
-function botonAgente(issue) {
+// Ajustes vigentes del último pintado: las tarjetas los leen sin volver a storage.
+let ajustes = {};
+
+/**
+ * Pone 🤖, regresa a Todo si estaba en curso y lo delega al agente de Ajustes.
+ * Desactiva los botones de la tarjeta mientras corre: un doble clic abriría dos sesiones del agente.
+ */
+async function soltar(issue, color, boton) {
+  const tarjeta = boton.closest('.item, .siguiente');
+  const botones = [...tarjeta.querySelectorAll('button')];
+  if (botones.some((b) => b.disabled)) return;
+  botones.forEach((b) => { b.disabled = true; });
+  const c = await config();
+  let r = {};
+  await accion(async () => {
+    r = await moverAAgente(c.llave, issue, { cambio: labelsParaAgente(issue, color), agenteNombre: c.agente });
+  }, () => {
+    if (r.sinAgente) return `${issue.identifier} → Para agente, sin delegar: no encontré al agente "${r.sinAgente}". Revísalo en Ajustes.`;
+    return `${issue.identifier} → Para agente${r.agente ? ` · ${r.agente} ya lo está trabajando` : ''}`;
+  });
+  botones.forEach((b) => { b.disabled = false; });
+}
+
+/** Si no tiene riesgo, lo pide ahí mismo con tres botones; si ya lo tiene, lo suelta directo. */
+function botonAgente(issue, texto = 'Mover a agente') {
   return el('button', {
-    title: 'Poner 🤖 listo-para-agente',
-    onclick: async () => {
-      const { ok, falta } = puedeIrAAgente(issue);
-      if (!ok) {
-        avisar(`Falta ${falta.join(' y ')}. Corre /triage-dia ${issue.identifier} antes de soltarlo.`);
-        return;
-      }
-      const c = await config();
-      await accion(() => actualizar(c.llave, issue.id, { labelIds: labelsParaAgente(issue) }), `${issue.identifier} → listo para agente`);
+    title: ajustes.agente ? `Soltarlo a un agente (🤖) y delegarlo a ${ajustes.agente}` : 'Soltarlo a un agente (🤖)',
+    onclick: (e) => {
+      const boton = e.currentTarget;
+      if (riesgo(issue)) return soltar(issue, null, boton);
+      const fila = boton.closest('.acciones');
+      if (fila.nextElementSibling?.classList.contains('elegir-riesgo')) return;
+      fila.after(el('div', { class: 'acciones elegir-riesgo' },
+        el('span', { class: 'meta' }, 'Riesgo:'),
+        ...['verde', 'amarillo', 'rojo'].map((color) =>
+          el('button', { class: `riesgo ${color}`, onclick: (ev) => soltar(issue, color, ev.currentTarget) }, color))));
     },
-  }, 'Mover a agente');
+  }, texto);
 }
 
 function tarjetaAgente(issue) {
   const color = riesgo(issue);
   const nota = { verde: 'el agente fusiona', amarillo: 'segundo agente + tu "va"', rojo: 'solo tú fusionas' }[color] || 'sin riesgo: ponlo antes de soltarlo';
-  return el('div', { class: 'item' }, cabecera(issue), el('div', { class: 'meta' }, `${meta(issue)} · ${nota}`));
+  return el('div', { class: 'item' },
+    cabecera(issue),
+    el('div', { class: 'meta' }, `${meta(issue)} · ${nota}`),
+    // Los que ya tienen 🤖 pero nadie los trabaja: un clic para que el agente los tome.
+    issue.delegate || !ajustes.agente ? null : el('div', { class: 'acciones' }, botonAgente(issue, `Delegar a ${ajustes.agente}`)));
 }
 
 function tarjetaAtorada(issue) {
@@ -129,8 +169,8 @@ function notasParaClaude(issue) {
 }
 
 /**
- * Los dos botones de la consulta de un grupo. `ctx` = persona, equipos y proyecto del popup.
- * Copiar: endpoint exacto + lista, para pegar en Claude. Linear: abre la misma búsqueda como vista personal.
+ * Botón de la consulta de un grupo. `ctx` = persona, equipos y proyecto del popup.
+ * Copia el endpoint exacto + la lista, para pegar en Claude. No crea nada en Linear.
  */
 function botonesDeConsulta(grupo, lista, ctx) {
   if (!ctx.persona) return null;
@@ -153,29 +193,7 @@ function botonesDeConsulta(grupo, lista, ctx) {
           avisar(`No pude copiar: ${err.message}`);
         }
       },
-    }, 'Copiar para Claude'),
-    el('button', {
-      title: 'Abrir esta misma búsqueda en Linear (vista personal)',
-      onclick: async (e) => {
-        parar(e);
-        // Un doble clic en el primer uso crearía dos vistas.
-        const boton = e.currentTarget;
-        if (boton.disabled) return;
-        boton.disabled = true;
-        try {
-          avisar('Armando la vista en Linear…', true);
-          const c = await config();
-          const vista = await vistaDeGrupo(c.llave, { nombre: `¿Qué sigue? · ${GRUPOS[grupo]}`, filtro: filtro(), vista: (await vistas())[grupo] });
-          await guardarVista(grupo, vista);
-          avisar('');
-          chrome.tabs.create({ url: vista.url });
-        } catch (err) {
-          avisar(err.message);
-        } finally {
-          boton.disabled = false;
-        }
-      },
-    }, 'Linear ↗'));
+    }, 'Copiar para Claude'));
 }
 
 const VISIBLES = 5;
@@ -204,6 +222,7 @@ function plegado(titulo, lista, nota, consulta = null) {
     ...lista.map((i) => el('div', { class: 'compacto' },
       el('span', { class: 'id' }, i.identifier),
       el('a', { href: i.url, target: '_blank' }, i.title),
+      ...chips(i),
       i.dias != null ? el('span', { class: 'id' }, `${i.dias} d`) : null)));
 }
 
@@ -221,6 +240,7 @@ async function pintarAhora() {
     main.append(el('p', { class: 'vacio' }, 'Cargando…'));
     return;
   }
+  ajustes = c;
   const equipos = equiposDe(c);
   const { lista: proyectos, sinProyecto } = proyectosDe(contados(datos.issues, equipos));
   // Si el proyecto guardado ya no trae issues tuyos, se vuelve a "Todos".

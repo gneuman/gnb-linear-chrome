@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nuevos, clasificar, puedeIrAAgente, labelsParaAgente, riesgo, resumen, LABEL } from '../lib/estado.js';
+import { nuevos, clasificar, labelsParaAgente, riesgo, resumen, talla, LABEL, RIESGO } from '../lib/estado.js';
 
 const lab = (id, name = id) => ({ id, name });
 const issue = (id, extra = {}) => ({
@@ -48,12 +48,39 @@ test('filtra por equipo', () => {
   assert.deepEqual(g.ahora.map((i) => i.id), ['INT-1']);
 });
 
-test('a agente solo con brief y riesgo', () => {
-  assert.deepEqual(puedeIrAAgente(issue('X')).falta, ['brief', 'riesgo']);
-  const listo = issue('Y', { labels: { nodes: [lab(LABEL.brief), lab('r', 'riesgo: verde'), lab(LABEL.humano)] } });
-  assert.equal(puedeIrAAgente(listo).ok, true);
-  assert.equal(riesgo(listo), 'verde');
-  assert.deepEqual(labelsParaAgente(listo), [LABEL.brief, 'r', LABEL.agente], 'quita el estado viejo, conserva lo demás');
+test('a agente: quita el label de estado, pone 🤖 y no toca lo demás', () => {
+  const conRiesgo = issue('Y', { labels: { nodes: [lab('r', 'riesgo: verde'), lab(LABEL.humano), lab(LABEL.info), lab('otro')] } });
+  assert.equal(riesgo(conRiesgo), 'verde');
+  assert.deepEqual(labelsParaAgente(conRiesgo), { addedLabelIds: [LABEL.agente], removedLabelIds: [LABEL.humano, LABEL.info] });
+  const yaEnAgente = issue('Y2', { labels: { nodes: [lab('r', 'riesgo: verde'), lab(LABEL.agente)] } });
+  assert.deepEqual(labelsParaAgente(yaEnAgente), { addedLabelIds: [], removedLabelIds: [] }, 'delegar uno que ya tiene 🤖 no cambia labels');
+});
+
+test('a agente sin brief: basta el riesgo, y si falta se agrega el color elegido', () => {
+  const sinNada = issue('X', { labels: { nodes: [lab(LABEL.humano)] } });
+  assert.throws(() => labelsParaAgente(sinNada), /riesgo/, 'sin riesgo ni color elegido no se mueve');
+  assert.deepEqual(labelsParaAgente(sinNada, 'amarillo'), { addedLabelIds: [LABEL.agente, RIESGO.amarillo], removedLabelIds: [LABEL.humano] });
+  const yaTiene = issue('W', { labels: { nodes: [{ id: 'v', name: 'verde', parent: { name: 'riesgo' } }] } });
+  assert.deepEqual(labelsParaAgente(yaTiene, 'rojo').addedLabelIds, [LABEL.agente], 'no le pone un segundo color');
+});
+
+test('delegado a un agente va a Para agente aunque esté In Progress, salvo en review', () => {
+  const ag = { id: 'ag', name: 'Linear' };
+  const g = clasificar([
+    issue('D1', { delegate: ag, state: { type: 'started', name: 'In Progress' } }),
+    issue('D2', { delegate: ag, labels: { nodes: [lab(LABEL.humano)] } }),
+    issue('D3', { delegate: ag, state: { type: 'started', name: 'In Review' } }),
+  ]);
+  assert.deepEqual(g.agente.map((i) => i.id), ['D1', 'D2']);
+  assert.deepEqual(g.esperando.map((i) => i.id), ['D3']);
+  assert.equal(g.siguiente, null, 'lo que trabaja el agente no sale como "Lo siguiente"');
+});
+
+test('talla: la estimación tShirt de Linear', () => {
+  assert.deepEqual([1, 2, 3, 5, 8].map((estimate) => talla({ estimate })), ['XS', 'S', 'M', 'L', 'XL']);
+  assert.equal(talla({ estimate: null }), null);
+  assert.equal(talla({}), null);
+  assert.equal(talla({ estimate: 4 }), '4', 'un valor fuera de la escala se ve tal cual');
 });
 
 test('resumen saca el Listo cuando', () => {
@@ -75,6 +102,4 @@ test('riesgo: el label de color dentro del grupo riesgo, como está en Linear', 
   assert.equal(riesgo(conGrupo), 'verde');
   assert.equal(riesgo(issue('Z2', { labels: { nodes: [{ id: 'r', name: 'Rojo' }] } })), 'rojo', 'el color solo, sin grupo');
   assert.equal(riesgo(issue('Z3', { labels: { nodes: [{ id: 'x', name: 'verde-limón', parent: { name: 'marca' } }] } })), null);
-  const listo = issue('Z4', { labels: { nodes: [lab(LABEL.brief), { id: 'a', name: 'amarillo', parent: { name: 'riesgo' } }] } });
-  assert.equal(puedeIrAAgente(listo).ok, true, 'con brief y color ya se puede mover a agente');
 });
