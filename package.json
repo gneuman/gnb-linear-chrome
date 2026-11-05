@@ -1,9 +1,11 @@
 {
   "name": "gnb-linear-chrome",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "empaquetar": "bash scripts/empaquetar.sh",
+    "capturas": "node tienda/capturas.mjs"
   }
 }
