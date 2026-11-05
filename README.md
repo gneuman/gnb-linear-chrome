@@ -27,7 +27,11 @@ Lee los labels que ya existen en el workspace (máquina de estados de
 Los recordatorios suenan con notificación de Chrome con **Posponer 10 min** y
 **Hecho**. Clic en la notificación abre el issue si viene de uno.
 
-## Instalar (modo desarrollador)
+## Instalar
+
+Para el equipo: [INSTALAR.md](INSTALAR.md). Para publicar en la Chrome Web Store: [tienda/README.md](tienda/README.md).
+
+### Modo desarrollador
 
 1. Clona el repo.
 2. Chrome → `chrome://extensions` → activa **Modo de desarrollador** →
@@ -59,6 +63,13 @@ código ni pasa por ningún servidor.
 ```bash
 npm test
 ```
+
+```bash
+npm run empaquetar
+```
+
+Arma el `.zip` para la tienda en `dist/`. `npm run capturas` deja las capturas
+de la ficha en `dist/tienda/`.
 
 La lógica (clasificar issues, entender horas) está en `lib/` sin dependencias
 de Chrome y tiene pruebas en `test/`. Sin build ni dependencias.
