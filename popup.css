@@ -1,0 +1,38 @@
+:root {
+  --bg: #ffffff; --fg: #1f2023; --suave: #6b6f76; --linea: #e6e6e9; --tarjeta: #f7f7f8;
+  --acento: #5e6ad2; --verde: #2e9d5b; --amarillo: #c99300; --rojo: #c0392b;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #17181b; --fg: #e8e8ea; --suave: #9a9ca3; --linea: #2c2d31; --tarjeta: #1f2024; }
+}
+* { box-sizing: border-box; }
+body { width: 400px; max-height: 580px; margin: 0; padding: 12px; font: 13px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--linea); background: var(--tarjeta); border-radius: 6px; padding: 4px 8px; }
+button.primario { background: var(--acento); border-color: var(--acento); color: #fff; }
+.rapido { display: flex; gap: 4px; }
+.rapido input[type=text] { flex: 1; min-width: 0; }
+.rapido input, .rapido select { border: 1px solid var(--linea); background: var(--bg); border-radius: 6px; padding: 4px 6px; }
+.rapido button { background: var(--acento); border-color: var(--acento); color: #fff; }
+.aviso { margin: 6px 0 0; color: var(--rojo); }
+.aviso.ok { color: var(--verde); }
+.tabs { display: flex; gap: 4px; margin: 10px 0; border-bottom: 1px solid var(--linea); padding-bottom: 6px; }
+.tabs button { border: 0; background: none; color: var(--suave); }
+.tabs button.activa { color: var(--fg); font-weight: 600; }
+.spacer { flex: 1; }
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); margin: 14px 0 6px; }
+.siguiente { border: 2px solid var(--acento); border-radius: 10px; padding: 10px; }
+.siguiente .titulo { font-size: 15px; font-weight: 600; }
+.item { border: 1px solid var(--linea); border-radius: 8px; padding: 8px; margin-bottom: 6px; background: var(--tarjeta); }
+.fila { display: flex; gap: 6px; align-items: center; }
+.id { color: var(--suave); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.titulo { flex: 1; }
+.titulo a { color: inherit; text-decoration: none; }
+.titulo a:hover { text-decoration: underline; }
+.meta { color: var(--suave); font-size: 12px; margin-top: 4px; }
+.listo { font-size: 12px; margin-top: 4px; }
+.acciones { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.punto { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--linea); }
+.punto.verde { background: var(--verde); } .punto.amarillo { background: var(--amarillo); } .punto.rojo { background: var(--rojo); }
+.vacio { color: var(--suave); }
+.vencido { border-color: var(--rojo); }
