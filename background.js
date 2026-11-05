@@ -10,7 +10,11 @@ const RESUMEN = 'resumen';
 const REC = 'rec:';
 const ICONO = 'icons/icon128.png';
 
-chrome.runtime.onInstalled.addListener(programar);
+chrome.runtime.onInstalled.addListener(() => {
+  // La 0.3.0 guardaba vistas de Linear; se quitaron en la 0.4.0.
+  chrome.storage.local.remove('vistas');
+  programar();
+});
 chrome.runtime.onStartup.addListener(programar);
 
 async function programar() {

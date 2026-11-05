@@ -13,6 +13,7 @@ function cumple(filtro, issue) {
     if (campo === 'assignee') return comparar(cond.id, issue.assignee?.id);
     if (campo === 'team') return comparar(cond.key, issue.team?.key);
     if (campo === 'project') return cond.null ? !issue.project : comparar(cond.id, issue.project?.id);
+    if (campo === 'delegate') return cond.null ? !issue.delegate : !!issue.delegate;
     if (campo === 'state') return Object.entries(cond).every(([k, c]) => comparar(c, issue.state?.[k]));
     if (campo === 'labels') {
       const ids = (issue.labels?.nodes || []).map((l) => l.id);
@@ -56,8 +57,9 @@ const LABELS = [[], [LABEL.humano], [LABEL.agente], [LABEL.info], [LABEL.triage]
 const PROYECTOS = [null, { id: 'p1', name: 'Wialon' }, { id: 'p2', name: 'CRM' }];
 const EQUIPOS = ['OP', 'INT'];
 const todos = [];
-for (const state of ESTADOS) for (const l of LABELS) for (const project of PROYECTOS) for (const key of EQUIPOS) {
-  todos.push(issue({ state, project, team: { key }, labels: { nodes: l.map(lab) } }));
+const DELEGADOS = [null, { id: 'ag', name: 'Linear' }];
+for (const state of ESTADOS) for (const l of LABELS) for (const project of PROYECTOS) for (const key of EQUIPOS) for (const delegate of DELEGADOS) {
+  todos.push(issue({ state, project, delegate, team: { key }, labels: { nodes: l.map(lab) } }));
 }
 todos.push(issue({ assignee: { id: 'otra-persona' }, labels: { nodes: [lab(LABEL.humano)] } }));
 

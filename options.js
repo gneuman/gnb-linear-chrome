@@ -9,16 +9,22 @@ config().then(async (c) => {
   $('#equipos').value = c.equipos;
   $('#correo').value = c.correo;
   $('#avisar').checked = c.avisarNuevos;
-  // Los agentes salen de Linear; sin llave queda la lista base (Ninguno / Linear).
-  if (c.llave) {
-    try {
-      const sel = $('#agente');
-      for (const a of await agentes(c.llave)) {
-        if (![...sel.options].some((o) => o.value === a.name)) sel.append(new Option(a.name, a.name));
-      }
-    } catch { /* sin red: se queda la lista base */ }
-  }
-  $('#agente').value = c.agente;
+  // El guardado se pone antes de ir a Linear: si se guarda antes de que responda, no se pierde.
+  const sel = $('#agente');
+  const opcion = (nombre, texto = nombre) => {
+    if (![...sel.options].some((o) => o.value === nombre)) sel.append(new Option(texto, nombre));
+  };
+  if (c.agente) opcion(c.agente);
+  sel.value = c.agente;
+  // Los agentes salen de Linear; sin llave o sin red queda la lista base.
+  if (!c.llave) return;
+  try {
+    const lista = await agentes(c.llave);
+    for (const a of lista) opcion(a.name);
+    if (c.agente && !lista.some((a) => a.name === c.agente)) {
+      [...sel.options].find((o) => o.value === c.agente).text = `${c.agente} (no está en Linear)`;
+    }
+  } catch { /* sin red: se queda la lista base */ }
 });
 
 chrome.identity.getProfileUserInfo({ accountStatus: 'ANY' }).then((info) => {

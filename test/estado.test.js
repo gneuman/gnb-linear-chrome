@@ -48,18 +48,32 @@ test('filtra por equipo', () => {
   assert.deepEqual(g.ahora.map((i) => i.id), ['INT-1']);
 });
 
-test('a agente: quita el estado viejo, pone 🤖 y conserva lo demás', () => {
-  const conRiesgo = issue('Y', { labels: { nodes: [lab('r', 'riesgo: verde'), lab(LABEL.humano), lab('otro')] } });
+test('a agente: quita el label de estado, pone 🤖 y no toca lo demás', () => {
+  const conRiesgo = issue('Y', { labels: { nodes: [lab('r', 'riesgo: verde'), lab(LABEL.humano), lab(LABEL.info), lab('otro')] } });
   assert.equal(riesgo(conRiesgo), 'verde');
-  assert.deepEqual(labelsParaAgente(conRiesgo), ['r', 'otro', LABEL.agente]);
+  assert.deepEqual(labelsParaAgente(conRiesgo), { addedLabelIds: [LABEL.agente], removedLabelIds: [LABEL.humano, LABEL.info] });
+  const yaEnAgente = issue('Y2', { labels: { nodes: [lab('r', 'riesgo: verde'), lab(LABEL.agente)] } });
+  assert.deepEqual(labelsParaAgente(yaEnAgente), { addedLabelIds: [], removedLabelIds: [] }, 'delegar uno que ya tiene 🤖 no cambia labels');
 });
 
 test('a agente sin brief: basta el riesgo, y si falta se agrega el color elegido', () => {
   const sinNada = issue('X', { labels: { nodes: [lab(LABEL.humano)] } });
   assert.throws(() => labelsParaAgente(sinNada), /riesgo/, 'sin riesgo ni color elegido no se mueve');
-  assert.deepEqual(labelsParaAgente(sinNada, 'amarillo'), [LABEL.agente, RIESGO.amarillo]);
+  assert.deepEqual(labelsParaAgente(sinNada, 'amarillo'), { addedLabelIds: [LABEL.agente, RIESGO.amarillo], removedLabelIds: [LABEL.humano] });
   const yaTiene = issue('W', { labels: { nodes: [{ id: 'v', name: 'verde', parent: { name: 'riesgo' } }] } });
-  assert.deepEqual(labelsParaAgente(yaTiene, 'rojo'), ['v', LABEL.agente], 'no le pone un segundo color');
+  assert.deepEqual(labelsParaAgente(yaTiene, 'rojo').addedLabelIds, [LABEL.agente], 'no le pone un segundo color');
+});
+
+test('delegado a un agente va a Para agente aunque esté In Progress, salvo en review', () => {
+  const ag = { id: 'ag', name: 'Linear' };
+  const g = clasificar([
+    issue('D1', { delegate: ag, state: { type: 'started', name: 'In Progress' } }),
+    issue('D2', { delegate: ag, labels: { nodes: [lab(LABEL.humano)] } }),
+    issue('D3', { delegate: ag, state: { type: 'started', name: 'In Review' } }),
+  ]);
+  assert.deepEqual(g.agente.map((i) => i.id), ['D1', 'D2']);
+  assert.deepEqual(g.esperando.map((i) => i.id), ['D3']);
+  assert.equal(g.siguiente, null, 'lo que trabaja el agente no sale como "Lo siguiente"');
 });
 
 test('talla: la estimación tShirt de Linear', () => {

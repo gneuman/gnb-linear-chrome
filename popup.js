@@ -102,27 +102,42 @@ function tarjetaTuya(issue, grande = false) {
       botonRecordar(issue)));
 }
 
-/** Pone 🤖, regresa a Todo si estaba en curso y lo delega al agente de Ajustes. */
-async function soltar(issue, color = null) {
+// Ajustes vigentes del último pintado: las tarjetas los leen sin volver a storage.
+let ajustes = {};
+
+/**
+ * Pone 🤖, regresa a Todo si estaba en curso y lo delega al agente de Ajustes.
+ * Desactiva los botones de la tarjeta mientras corre: un doble clic abriría dos sesiones del agente.
+ */
+async function soltar(issue, color, boton) {
+  const tarjeta = boton.closest('.item, .siguiente');
+  const botones = [...tarjeta.querySelectorAll('button')];
+  if (botones.some((b) => b.disabled)) return;
+  botones.forEach((b) => { b.disabled = true; });
   const c = await config();
-  let agente = null;
+  let r = {};
   await accion(async () => {
-    agente = await moverAAgente(c.llave, issue, { labelIds: labelsParaAgente(issue, color), agenteNombre: c.agente });
-  }, () => `${issue.identifier} → Para agente${agente ? ` · ${agente} ya lo está trabajando` : ''}`);
+    r = await moverAAgente(c.llave, issue, { cambio: labelsParaAgente(issue, color), agenteNombre: c.agente });
+  }, () => {
+    if (r.sinAgente) return `${issue.identifier} → Para agente, sin delegar: no encontré al agente "${r.sinAgente}". Revísalo en Ajustes.`;
+    return `${issue.identifier} → Para agente${r.agente ? ` · ${r.agente} ya lo está trabajando` : ''}`;
+  });
+  botones.forEach((b) => { b.disabled = false; });
 }
 
 /** Si no tiene riesgo, lo pide ahí mismo con tres botones; si ya lo tiene, lo suelta directo. */
 function botonAgente(issue, texto = 'Mover a agente') {
   return el('button', {
-    title: 'Soltarlo a un agente (🤖) y delegarlo al agente de Ajustes',
+    title: ajustes.agente ? `Soltarlo a un agente (🤖) y delegarlo a ${ajustes.agente}` : 'Soltarlo a un agente (🤖)',
     onclick: (e) => {
-      if (riesgo(issue)) return soltar(issue);
-      const fila = e.currentTarget.closest('.acciones');
+      const boton = e.currentTarget;
+      if (riesgo(issue)) return soltar(issue, null, boton);
+      const fila = boton.closest('.acciones');
       if (fila.nextElementSibling?.classList.contains('elegir-riesgo')) return;
       fila.after(el('div', { class: 'acciones elegir-riesgo' },
         el('span', { class: 'meta' }, 'Riesgo:'),
         ...['verde', 'amarillo', 'rojo'].map((color) =>
-          el('button', { class: `riesgo ${color}`, onclick: () => soltar(issue, color) }, color))));
+          el('button', { class: `riesgo ${color}`, onclick: (ev) => soltar(issue, color, ev.currentTarget) }, color))));
     },
   }, texto);
 }
@@ -134,7 +149,7 @@ function tarjetaAgente(issue) {
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)} · ${nota}`),
     // Los que ya tienen 🤖 pero nadie los trabaja: un clic para que el agente los tome.
-    issue.delegate ? null : el('div', { class: 'acciones' }, botonAgente(issue, 'Delegar al agente')));
+    issue.delegate || !ajustes.agente ? null : el('div', { class: 'acciones' }, botonAgente(issue, `Delegar a ${ajustes.agente}`)));
 }
 
 function tarjetaAtorada(issue) {
@@ -225,6 +240,7 @@ async function pintarAhora() {
     main.append(el('p', { class: 'vacio' }, 'Cargando…'));
     return;
   }
+  ajustes = c;
   const equipos = equiposDe(c);
   const { lista: proyectos, sinProyecto } = proyectosDe(contados(datos.issues, equipos));
   // Si el proyecto guardado ya no trae issues tuyos, se vuelve a "Todos".
