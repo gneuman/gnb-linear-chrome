@@ -6,7 +6,7 @@ Cada bloque va en el campo del mismo nombre del panel de la tienda.
 
 **Idioma:** Español (Latinoamérica).
 
-**Nombre** (sale del `manifest.json`): `GNB · ¿Qué sigue?`
+**Nombre** (sale del `manifest.json`): `¿Qué sigue?`
 
 **Resumen** (también sale del manifest, máximo 132 caracteres):
 
