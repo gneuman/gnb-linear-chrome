@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listoParaClaude, repoParaClaude, dispararTaskAI, RUTINA } from '../lib/taskai.js';
+import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, RUTINA, ESPERA_REENVIO } from '../lib/taskai.js';
 import { LABEL, RIESGO } from '../lib/estado.js';
 
 const listo = (extra = {}) => ({
@@ -33,7 +33,7 @@ test('listoParaClaude: dice qué falta en cada caso', () => {
   const sinRepo = listoParaClaude(listo({ description: 'Listo cuando: pasa' }));
   assert.deepEqual(sinRepo.falta, ['repo']);
 
-  const dosRepos = listoParaClaude(listo({ description: 'gneuman/a y gneuman/b. Listo cuando: pasa' }));
+  const dosRepos = listoParaClaude(listo({ description: 'gneuman/a y gneuman/b.\nListo cuando: pasa' }));
   assert.deepEqual(dosRepos.falta, ['un solo repo (trae varios)']);
 
   const sinListo = listoParaClaude(listo({ description: 'en gneuman/gnb-meta' }));
@@ -72,4 +72,27 @@ test('dispararTaskAI: sin token o con ID raro no llama a nadie', async () => {
   const pedir = async () => { throw new Error('no debió llamar'); };
   await assert.rejects(dispararTaskAI({ token: '', issueId: 'INT-7', pedir }), /Falta el token/);
   await assert.rejects(dispararTaskAI({ token: 't', rutina: 'otra', issueId: 'INT-7', pedir }), /trig_/);
+});
+
+test('repoParaClaude: una rama de Linear no es repo', () => {
+  assert.deepEqual(repoParaClaude({ description: 'Rama: gneuman/int-2019-agregar-botones' }), { repo: null, varios: false });
+  assert.deepEqual(repoParaClaude({ description: 'Rama gneuman/int-2019-x en gneuman/gnb-meta' }), { repo: 'gneuman/gnb-meta', varios: false });
+  assert.deepEqual(repoParaClaude({ branchName: 'gneuman/fix-algo', description: 'gneuman/fix-algo en gneuman/postleads' }), { repo: 'gneuman/postleads', varios: false });
+});
+
+test('listoParaClaude: "Listo cuando" a media frase no cuenta', () => {
+  assert.deepEqual(listoParaClaude(listo({ description: 'gneuman/gnb-meta, todavía sin listo cuando' })).falta, ['"Listo cuando"']);
+  assert.equal(listoParaClaude(listo({ description: 'gneuman/gnb-meta\n**Listo cuando:** pasa' })).listo, true);
+});
+
+test('dispararTaskAI: una liga que no es de claude.ai no se enseña', async () => {
+  const pedir = async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ claude_code_session_url: 'javascript:alert(1)' }) });
+  assert.equal((await dispararTaskAI({ token: 't', issueId: 'INT-7', pedir })).url, null);
+});
+
+test('mandadoHacePoco: pregunta antes de mandar dos veces el mismo issue', () => {
+  const ahora = 1_000_000_000;
+  assert.equal(mandadoHacePoco({ 'INT-7': ahora - 60_000 }, 'INT-7', ahora), true);
+  assert.equal(mandadoHacePoco({ 'INT-7': ahora - ESPERA_REENVIO - 1 }, 'INT-7', ahora), false);
+  assert.equal(mandadoHacePoco({}, 'INT-7', ahora), false);
 });

@@ -2,7 +2,7 @@ import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
 import { empezar, moverAAgente, actualizar, opcionesDelTeam, TOPE } from './lib/linear.js';
-import { listoParaClaude, dispararTaskAI } from './lib/taskai.js';
+import { listoParaClaude, dispararTaskAI, mandadoHacePoco } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -189,11 +189,18 @@ function botonTaskAI(issue) {
     onclick: async (e) => {
       const boton = e.currentTarget;
       if (boton.disabled) return;
+      // Cada disparo abre una sesión nueva de Claude: dos clics = dos PRs.
+      const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
+      const pregunta = mandadoHacePoco(enviadosTaskAI, issue.identifier)
+        ? `${issue.identifier} ya se mandó a Claude hace menos de 30 min. ¿Mandarlo otra vez? Se abriría otra sesión.`
+        : `¿Mandar ${issue.identifier} a Claude? Lo hace y te deja el PR a revisión.`;
+      if (!confirm(pregunta)) return;
       boton.disabled = true;
       try {
         const c = await config();
         avisar(`Mandando ${issue.identifier} a TaskAI…`, true);
         const r = await dispararTaskAI({ token: c.tokenTaskAI, rutina: c.rutinaTaskAI, issueId: issue.identifier });
+        await chrome.storage.local.set({ enviadosTaskAI: { ...enviadosTaskAI, [issue.identifier]: Date.now() } });
         avisar(`${issue.identifier} → TaskAI (${r.status}). Te deja el PR a revisión.`, true);
         if (r.url) $('#aviso').append(' ', el('a', { href: r.url, target: '_blank' }, 'Ver sesión'));
       } catch (err) {
@@ -231,6 +238,8 @@ function botonEditar(issue) {
             ...estados.map((s) => opcion(s.id, s.name, s.id === issue.state?.id))),
           el('select', { title: 'Talla', onchange: (ev) => cambiar({ estimate: ev.target.value ? Number(ev.target.value) : null }, `talla ${ev.target.selectedOptions[0].text}`) },
             opcion('', 'Sin talla', issue.estimate == null),
+            // Una talla fuera de la lista (13, 21) se enseña tal cual, no como "Sin talla".
+            issue.estimate != null && !OPCIONES_TALLA.some(([v]) => v === issue.estimate) ? opcion(String(issue.estimate), talla(issue), true) : null,
             ...OPCIONES_TALLA.map(([v, t]) => opcion(String(v), t, issue.estimate === v))),
           el('select', { title: 'Persona', onchange: (ev) => cambiar({ assigneeId: ev.target.value || null }, ev.target.selectedOptions[0].text) },
             opcion('', 'Sin asignar', !issue.assignee),
