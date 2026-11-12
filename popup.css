@@ -76,3 +76,6 @@ a.boton.primario { background: var(--acento); border-color: var(--acento); color
 .prs { font-size: 12px; margin-top: 4px; } .prs a { color: var(--acento); }
 .prs.fusionado { padding: 4px 6px; border-left: 3px solid var(--verde); background: var(--bg); }
 .prs button { font-size: 11px; padding: 1px 6px; }
+.traer { display: flex; gap: 6px; margin: 4px 0 8px; }
+.traer input { flex: 1; border: 1px solid var(--linea); background: var(--bg); color: inherit; border-radius: 6px; padding: 5px 8px; }
+.quitar { margin-left: auto; padding: 0 6px; border: none; background: none; color: var(--suave); cursor: pointer; }

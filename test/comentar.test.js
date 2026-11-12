@@ -36,3 +36,12 @@ test('prepararLinear: crea solo lo que falta, y los colores dentro del grupo rie
   assert.equal(creadas.find((c) => c.name === 'riesgo').isGroup, true);
   assert.equal(creadas.find((c) => c.name === 'rojo').parentId, 'id-riesgo');
 });
+
+import { idDeIssue } from '../lib/linear.js';
+
+test('idDeIssue: lee el ID de la liga o del texto', () => {
+  assert.equal(idDeIssue('https://linear.app/gnb-labs/issue/CID-683/crear-la-landing'), 'CID-683');
+  assert.equal(idDeIssue(' cid-683 '), 'CID-683');
+  assert.equal(idDeIssue('hola'), null);
+  assert.equal(idDeIssue('ver CID-683 mañana'), null, 'texto suelto no: solo el ID o la liga');
+});
