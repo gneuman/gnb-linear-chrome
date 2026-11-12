@@ -1,7 +1,7 @@
 import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
-import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, idsDeLabels, TOPE } from './lib/linear.js';
+import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, idsDeLabels, idDeIssue, traerIssue, TOPE } from './lib/linear.js';
 import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento, prsDe } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
@@ -376,7 +376,7 @@ function opcionesDe(llave, teamId) {
 /** Abre debajo de la tarjeta los selectores de estado, talla y persona; cada cambio va directo a Linear. */
 function botonEditar(issue) {
   return el('button', {
-    title: 'Cambiar estado, talla o persona en Linear',
+    title: 'Cambiar estado, prioridad, talla o persona en Linear',
     onclick: async (e) => {
       const fila = e.currentTarget.closest('.acciones');
       const abierta = fila.nextElementSibling;
@@ -391,6 +391,8 @@ function botonEditar(issue) {
         caja.replaceChildren(
           el('select', { title: 'Estado', onchange: (ev) => cambiar({ stateId: ev.target.value }, ev.target.selectedOptions[0].text) },
             ...estados.map((s) => opcion(s.id, s.name, s.id === issue.state?.id))),
+          el('select', { title: 'Prioridad', onchange: (ev) => cambiar({ priority: Number(ev.target.value) }, `prioridad ${ev.target.selectedOptions[0].text}`) },
+            ...[[1, 'Urgente'], [2, 'Alta'], [3, 'Media'], [4, 'Baja'], [0, 'Sin prioridad']].map(([v, t]) => opcion(String(v), t, (issue.priority ?? 0) === v))),
           el('select', { title: 'Talla', onchange: (ev) => cambiar({ estimate: ev.target.value ? Number(ev.target.value) : null }, `talla ${ev.target.selectedOptions[0].text}`) },
             opcion('', 'Sin talla', issue.estimate == null),
             // Una talla fuera de la lista (13, 21) se enseña tal cual, no como "Sin talla".
@@ -538,6 +540,7 @@ async function pintarAhora() {
   const consulta = (grupo) => botonesDeConsulta(grupo, g[grupo], ctx);
   // append() pinta `null` como texto: lo vacío se quita antes.
   main.append(...[
+    await seccionTraidos(datos.persona),
     selectorDeProyecto(proyectos, sinProyecto, proyecto),
     el('h2', {}, 'Lo siguiente'),
     g.siguiente ? tarjetaTuya(g.siguiente, true) : el('p', { class: 'vacio' }, proyecto ? 'Nada tuyo para hoy en este proyecto.' : 'Nada tuyo para hoy.'),
@@ -556,6 +559,62 @@ async function pintarAhora() {
       ? el('p', { class: 'aviso' }, `Llegaste al tope de ${TOPE} issues: puede faltar alguno. Cierra o cancela los viejos en Linear.`)
       : null,
   ].filter(Boolean));
+}
+
+// ---------- Traer un issue cualquiera ----------
+// Pegas "CID-683" o su liga y queda fijo arriba con todos los botones (Mandar a
+// Claude, Editar, Comentar…), aunque no sea tuyo. Se quedan hasta que les das ✕.
+
+const MAX_TRAIDOS = 5;
+
+async function traidos() {
+  const { traidos = [] } = await chrome.storage.local.get('traidos');
+  return traidos;
+}
+
+async function guardarTraidos(lista) {
+  await chrome.storage.local.set({ traidos: lista.slice(0, MAX_TRAIDOS) });
+}
+
+async function seccionTraidos(persona) {
+  const campo = el('input', { type: 'text', placeholder: 'Pega un issue: CID-683 o su liga', autocomplete: 'off' });
+  const caja = el('div', { class: 'traidos' });
+  const form = el('form', { class: 'traer', onsubmit: async (e) => {
+    e.preventDefault();
+    const id = idDeIssue(campo.value);
+    if (!id) return avisar('Eso no parece un issue. Pega el ID (CID-683) o la liga de Linear.');
+    await guardarTraidos([id, ...(await traidos()).filter((t) => t !== id)]);
+    campo.value = '';
+    await pintarAhora();
+  } }, campo, el('button', { type: 'submit' }, 'Traer'));
+
+  const ids = await traidos();
+  if (ids.length) {
+    caja.append(el('h2', {}, '📌 Traídos'));
+    const c = await config();
+    // Se piden en paralelo; uno que falle no tumba a los demás.
+    const issues = await Promise.all(ids.map((id) => traerIssue(c.llave, id).catch((err) => ({ error: err.message, identifier: id }))));
+    for (const i of issues) caja.append(tarjetaTraida(i, persona));
+  }
+  return el('div', {}, form, caja);
+}
+
+function tarjetaTraida(issue, persona) {
+  const quitar = el('button', { class: 'quitar', title: 'Quitar de aquí (no cambia nada en Linear)', onclick: async () => {
+    await guardarTraidos((await traidos()).filter((t) => t !== issue.identifier));
+    await pintarAhora();
+  } }, '✕');
+  if (issue.error) return el('div', { class: 'item' }, el('div', { class: 'meta' }, `${issue.identifier}: ${issue.error} `, quitar));
+  const tarjeta = tarjetaTuya(issue);
+  tarjeta.querySelector('.fila').append(quitar);
+  if (persona?.id && issue.assignee?.id !== persona.id) {
+    tarjeta.querySelector('.meta').append(` · de ${issue.assignee?.name || 'nadie'} · `,
+      el('button', { onclick: async () => {
+        const c = await config();
+        await accion(() => actualizar(c.llave, issue.id, { assigneeId: persona.id }), `${issue.identifier} → ahora es tuyo`);
+      } }, 'Asignármelo'));
+  }
+  return tarjeta;
 }
 
 /** Los issues que el popup cuenta con el filtro de equipos y sin el de proyecto: de ahí salen las opciones. */
