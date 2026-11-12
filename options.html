@@ -9,6 +9,7 @@
     label { display: block; margin: 14px 0 4px; font-weight: 600; }
     input { width: 100%; border: 1px solid var(--linea); background: var(--bg); border-radius: 6px; padding: 6px 8px; }
     small { color: var(--suave); }
+    h2 { font-size: 15px; margin: 28px 0 4px; }
   </style>
 </head>
 <body>
@@ -37,16 +38,30 @@
     </select>
     <small>"Mover a agente" le delega el issue. Para que lo programe Claude: en Linear, Settings → AI &amp; agents → Cloud coding agent → modelo Claude.</small>
 
-    <label for="token-taskai">Token de TaskAI</label>
+    <h2>Mandar a Claude (opcional)</h2>
+    <small>Con tu propia tarea de Claude, el botón "Mandar a Claude" le pasa el issue y Claude te deja el PR a revisión. Sin token el botón no sale. Cómo crear la tarea: <a href="https://github.com/gneuman/gnb-linear-chrome/blob/main/taskai/README.md" target="_blank">guía</a>.</small>
+
+    <label for="token-taskai">Token de la tarea</label>
     <input id="token-taskai" type="password" autocomplete="off" placeholder="sk-ant-…">
-    <small id="token-ayuda">"Mandar a Claude" dispara la tarea TaskAI, que hace el issue y te deja el PR a revisión. El token se genera en claude.ai/code/routines (la tarea → disparo por API). Se guarda solo en este Chrome y no se vuelve a enseñar: vacío = se queda el que ya estaba.</small>
+    <small id="token-ayuda">Se genera en claude.ai/code/routines (tu tarea → disparo por API). Se guarda solo en este Chrome y no se vuelve a enseñar: vacío = se queda el que ya estaba.</small>
     <label><input id="borrar-token" type="checkbox" style="width:auto"> Borrar el token guardado</label>
 
     <label for="rutina-taskai">ID de la tarea</label>
     <input id="rutina-taskai" type="text" autocomplete="off" placeholder="trig_…">
 
+    <label for="dueno">Dueño de tus repos en GitHub</label>
+    <input id="dueno" type="text" autocomplete="off" placeholder="mi-empresa">
+    <small>Para encontrar el repo de un issue cuando lo escribes como <code>mi-empresa/repo</code> en la descripción. Lo que ligas en Linear (PR, rama o link del proyecto) se detecta sin esto.</small>
+
     <p><button class="primario" type="submit">Guardar</button> <span id="estado" class="aviso ok"></span></p>
   </form>
+
+  <h2>Preparar mi Linear</h2>
+  <p><small>La extensión ordena tus issues con estas etiquetas: 🔍 necesita-triage, 👤 listo-para-humano, 🤖 listo-para-agente, ❓ necesita-info y el grupo <b>riesgo</b> (verde, amarillo, rojo). Este botón crea las que te falten; las que ya tienes no se tocan.</small></p>
+  <p><button id="preparar" type="button">Preparar mi Linear</button> <span id="estado-preparar" class="aviso ok"></span></p>
+
+  <h2>¿Te sirve?</h2>
+  <p><small>¿Qué sigue? es gratis y de código abierto. <a href="https://github.com/gneuman/gnb-linear-chrome" target="_blank">Código en GitHub</a> · <a id="donar" href="https://github.com/sponsors/gneuman" target="_blank">❤️ Donar</a></small></p>
   <script type="module" src="options.js"></script>
 </body>
 </html>

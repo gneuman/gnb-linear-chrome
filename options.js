@@ -1,6 +1,5 @@
 import { config, guardarConfig } from './lib/store.js';
-import { gql, agentes } from './lib/linear.js';
-import { RUTINA } from './lib/taskai.js';
+import { gql, agentes, prepararLinear } from './lib/linear.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -10,8 +9,8 @@ config().then(async (c) => {
   $('#equipos').value = c.equipos;
   $('#correo').value = c.correo;
   $('#avisar').checked = c.avisarNuevos;
-  // El ID viejo estaba amarrado a un proyecto y daba 403 "this project is paused".
-  $('#rutina-taskai').value = c.rutinaTaskAI === 'trig_01SWHeRdh6jxZ4MdUMJuk1Bq' ? RUTINA : c.rutinaTaskAI;
+  $('#rutina-taskai').value = c.rutinaTaskAI;
+  $('#dueno').value = c.duenoRepos;
   // El token no se vuelve a pintar: solo se dice si hay uno.
   $('#token-taskai').placeholder = c.tokenTaskAI ? 'Guardado · escribe uno nuevo para cambiarlo' : 'sk-ant-…';
   // El guardado se pone antes de ir a Linear: si se guarda antes de que responda, no se pierde.
@@ -49,19 +48,39 @@ $('#f').addEventListener('submit', async (e) => {
       const u = await gql(llave, 'query($c: String!) { users(filter: { email: { eqIgnoreCase: $c } }) { nodes { name } } }', { c: correo });
       if (!u.users.nodes.length) throw new Error(`${correo} no es usuario de este Linear.`);
     }
-    const rutinaTaskAI = $('#rutina-taskai').value.trim() || RUTINA;
-    if (!/^trig_\w+$/.test(rutinaTaskAI)) throw new Error('El ID de la tarea empieza con trig_.');
+    const rutinaTaskAI = $('#rutina-taskai').value.trim();
+    if (rutinaTaskAI && !/^trig_\w+$/.test(rutinaTaskAI)) throw new Error('El ID de la tarea empieza con trig_.');
     const token = $('#token-taskai').value.trim();
     const taskai = { rutinaTaskAI };
     if ($('#borrar-token').checked) taskai.tokenTaskAI = '';
     else if (token) taskai.tokenTaskAI = token;
-    await guardarConfig({ llave, correo, avisarNuevos: $('#avisar').checked, horaResumen: $('#hora').value || '09:00', equipos: $('#equipos').value.trim(), agente: $('#agente').value, ...taskai });
+    const conToken = taskai.tokenTaskAI ?? (await config()).tokenTaskAI;
+    if (conToken && !rutinaTaskAI) throw new Error('Con token hace falta el ID de la tarea (trig_…).');
+    const duenoRepos = $('#dueno').value.trim().replace(/^@/, '');
+    if (duenoRepos && !/^[\w.-]+$/.test(duenoRepos)) throw new Error('El dueño de GitHub es solo el usuario u organización, sin liga (por ejemplo: mi-empresa).');
+    await guardarConfig({ llave, correo, avisarNuevos: $('#avisar').checked, horaResumen: $('#hora').value || '09:00', equipos: $('#equipos').value.trim(), agente: $('#agente').value, duenoRepos, ...taskai });
     $('#token-taskai').value = '';
     $('#borrar-token').checked = false;
     $('#token-taskai').placeholder = (await config()).tokenTaskAI ? 'Guardado · escribe uno nuevo para cambiarlo' : 'sk-ant-…';
     await chrome.runtime.sendMessage({ tipo: 'programar' });
     await chrome.runtime.sendMessage({ tipo: 'refrescar' });
     estado.textContent = `Listo, ${d.viewer.name}.`;
+  } catch (err) {
+    estado.className = 'aviso';
+    estado.textContent = err.message;
+  }
+});
+
+// Crea en Linear las etiquetas que la extensión usa. Las que ya existen no se tocan.
+$('#preparar').addEventListener('click', async () => {
+  const estado = $('#estado-preparar');
+  estado.className = 'aviso ok';
+  estado.textContent = 'Revisando tu Linear…';
+  try {
+    const { llave } = await config();
+    if (!llave) throw new Error('Primero guarda tu API key.');
+    const creadas = await prepararLinear(llave);
+    estado.textContent = creadas.length ? `Listo: creé ${creadas.join(', ')}.` : 'Ya tenías todas. No cambié nada.';
   } catch (err) {
     estado.className = 'aviso';
     estado.textContent = err.message;

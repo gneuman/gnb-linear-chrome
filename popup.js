@@ -1,7 +1,7 @@
 import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
-import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, TOPE } from './lib/linear.js';
+import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, idsDeLabels, TOPE } from './lib/linear.js';
 import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento, prsDe } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
@@ -33,7 +33,7 @@ function meta(issue) {
   if (issue.dueDate) partes.push(`vence ${issue.dueDate}`);
   if (issue.delegate) partes.push(`🤖 ${issue.delegate.name} lo trabaja`);
   // El repo que TaskAI tiene que tener conectado para hacer el issue.
-  const { repo, varios } = repoParaClaude(issue);
+  const { repo, varios } = repoParaClaude(issue, ajustes.duenoRepos);
   partes.push(repo ? `📦 ${repo}` : varios ? '📦 varios repos' : '📦 sin repo');
   return partes.filter(Boolean).join(' · ');
 }
@@ -131,6 +131,13 @@ function tarjetaTuya(issue, grande = false) {
 // Ajustes vigentes del último pintado: las tarjetas los leen sin volver a storage.
 let ajustes = {};
 
+// Nombre → ID de las etiquetas en este workspace: se pide una vez por popup abierto.
+let etiquetas = null;
+function idsEtiquetas(llave) {
+  etiquetas ||= idsDeLabels(llave, [...Object.values(LABEL), ...Object.values(RIESGO)]).catch((e) => { etiquetas = null; throw e; });
+  return etiquetas;
+}
+
 /**
  * Pone 🤖, regresa a Todo si estaba en curso y lo delega al agente de Ajustes.
  * Desactiva los botones de la tarjeta mientras corre: un doble clic abriría dos sesiones del agente.
@@ -143,7 +150,7 @@ async function soltar(issue, color, boton) {
   const c = await config();
   let r = {};
   await accion(async () => {
-    r = await moverAAgente(c.llave, issue, { cambio: labelsParaAgente(issue, color), agenteNombre: c.agente });
+    r = await moverAAgente(c.llave, issue, { cambio: labelsParaAgente(issue, color, await idsEtiquetas(c.llave)), agenteNombre: c.agente });
   }, () => {
     if (r.sinAgente) return `${issue.identifier} → Para agente, sin delegar: no encontré al agente "${r.sinAgente}". Revísalo en Ajustes.`;
     return `${issue.identifier} → Para agente${r.agente ? ` · ${r.agente} ya lo está trabajando` : ''}`;
@@ -219,7 +226,9 @@ function modal({ titulo, texto = '', cuerpo = null, botones = [], tono = '' }) {
  * enseña "Lanzando…" y deja el resultado: ✅ Lanzado o ❌ No se lanzó.
  */
 function botonTaskAI(issue) {
-  const { listo, falta } = listoParaClaude(issue);
+  // Sin token no hay a quién mandarlo: el botón ni sale (se configura en Ajustes).
+  if (!ajustes.tokenTaskAI) return null;
+  const { listo, falta } = listoParaClaude(issue, ajustes.duenoRepos);
   return el('button', {
     class: listo ? 'primario' : '',
     title: listo ? 'Claude lo hace y te deja el PR a revisión, sin fusionar' : `Antes falta: ${falta.join(', ')}`,
@@ -230,17 +239,17 @@ function botonTaskAI(issue) {
 async function abrirTaskAI(issue, m = null) {
   const c = await config();
   const mostrar = (o) => (m ? m.cambiar(o) : (m = modal(o)));
-  const { listo, falta, repo } = listoParaClaude(issue);
+  const { listo, falta, repo } = listoParaClaude(issue, c.duenoRepos);
 
   if (!listo) {
     const color = riesgo(issue);
-    const arreglable = falta.every((f) => f === '🤖 listo-para-agente' || f === 'riesgo');
+    const arreglable = falta.every((f) => f === LABEL.agente || f === 'riesgo');
     const poner = (nuevo) => async () => {
       mostrar({ titulo: `Preparando ${issue.identifier}…` });
       try {
-        await actualizar(c.llave, issue.id, labelsParaAgente(issue, nuevo));
-        const extra = [{ id: LABEL.agente, name: '🤖 listo-para-agente' }];
-        if (nuevo && !color) extra.push({ id: RIESGO[nuevo], name: nuevo });
+        await actualizar(c.llave, issue.id, labelsParaAgente(issue, nuevo, await idsEtiquetas(c.llave)));
+        const extra = [{ name: LABEL.agente }];
+        if (nuevo && !color) extra.push({ name: RIESGO[nuevo], parent: { name: 'riesgo' } });
         await abrirTaskAI({ ...issue, labels: { nodes: [...(issue.labels?.nodes || []), ...extra] } }, m);
         chrome.runtime.sendMessage({ tipo: 'refrescar' }).then(pintar);
       } catch (err) {
@@ -261,7 +270,7 @@ async function abrirTaskAI(issue, m = null) {
   }
 
   if (!c.tokenTaskAI) {
-    return mostrar({ tono: 'mal', titulo: '❌ No se lanzó', texto: 'Falta el token de TaskAI. Genéralo en claude.ai/code/routines → TaskAI → disparo por API, y pégalo en Ajustes.',
+    return mostrar({ tono: 'mal', titulo: '❌ No se lanzó', texto: 'Falta el token de tu tarea. Genéralo en claude.ai/code/routines → tu tarea → disparo por API, y pégalo en Ajustes.',
       botones: [{ texto: 'Abrir Ajustes', primario: true, onclick: () => chrome.runtime.openOptionsPage() }, { texto: 'Cerrar' }] });
   }
   // Cada disparo abre una sesión nueva de Claude: dos clics = dos PRs.
@@ -290,10 +299,10 @@ async function abrirTaskAI(issue, m = null) {
 }
 
 const AYUDA = {
-  '🤖 listo-para-agente': 'La etiqueta 🤖 listo-para-agente',
+  [LABEL.agente]: `La etiqueta ${LABEL.agente}`,
   riesgo: 'El color de riesgo: verde o amarillo',
   'riesgo verde o amarillo (es rojo)': 'Es rojo: ese no lo hace un agente, lo haces tú',
-  repo: 'El repo: escribe gneuman/<repo> en la descripción o liga el repo al proyecto',
+  repo: 'El repo: lígalo al issue o al proyecto en Linear, o escribe dueño/repo en la descripción (el dueño de GitHub va en Ajustes)',
   'un solo repo (trae varios)': 'Un solo repo: la descripción menciona varios; parte el issue',
   '"Listo cuando"': 'Una sección "Listo cuando" con lo que se tiene que comprobar',
 };
@@ -517,6 +526,7 @@ async function pintarAhora() {
     return;
   }
   ajustes = c;
+  $('[data-tab="taskai"]').hidden = !c.tokenTaskAI;
   const equipos = equiposDe(c);
   const { lista: proyectos, sinProyecto } = proyectosDe(contados(datos.issues, equipos));
   // Si el proyecto guardado ya no trae issues tuyos, se vuelve a "Todos".

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { nuevos, clasificar, labelsParaAgente, riesgo, resumen, talla, LABEL, RIESGO } from '../lib/estado.js';
 
 const lab = (id, name = id) => ({ id, name });
+const IDS = { [LABEL.agente]: 'id-agente', [RIESGO.verde]: 'id-verde', [RIESGO.amarillo]: 'id-amarillo', [RIESGO.rojo]: 'id-rojo' };
 const issue = (id, extra = {}) => ({
   id, identifier: id, title: id, priority: 0, team: { key: 'OP' },
   state: { type: 'unstarted', name: 'Todo' }, labels: { nodes: [] }, ...extra,
@@ -51,17 +52,24 @@ test('filtra por equipo', () => {
 test('a agente: quita el label de estado, pone 🤖 y no toca lo demás', () => {
   const conRiesgo = issue('Y', { labels: { nodes: [lab('r', 'riesgo: verde'), lab(LABEL.humano), lab(LABEL.info), lab('otro')] } });
   assert.equal(riesgo(conRiesgo), 'verde');
-  assert.deepEqual(labelsParaAgente(conRiesgo), { addedLabelIds: [LABEL.agente], removedLabelIds: [LABEL.humano, LABEL.info] });
+  assert.deepEqual(labelsParaAgente(conRiesgo, null, IDS), { addedLabelIds: ['id-agente'], removedLabelIds: [LABEL.humano, LABEL.info] });
   const yaEnAgente = issue('Y2', { labels: { nodes: [lab('r', 'riesgo: verde'), lab(LABEL.agente)] } });
-  assert.deepEqual(labelsParaAgente(yaEnAgente), { addedLabelIds: [], removedLabelIds: [] }, 'delegar uno que ya tiene 🤖 no cambia labels');
+  assert.deepEqual(labelsParaAgente(yaEnAgente, null, IDS), { addedLabelIds: [], removedLabelIds: [] }, 'delegar uno que ya tiene 🤖 no cambia labels');
 });
 
 test('a agente sin brief: basta el riesgo, y si falta se agrega el color elegido', () => {
   const sinNada = issue('X', { labels: { nodes: [lab(LABEL.humano)] } });
-  assert.throws(() => labelsParaAgente(sinNada), /riesgo/, 'sin riesgo ni color elegido no se mueve');
-  assert.deepEqual(labelsParaAgente(sinNada, 'amarillo'), { addedLabelIds: [LABEL.agente, RIESGO.amarillo], removedLabelIds: [LABEL.humano] });
+  assert.throws(() => labelsParaAgente(sinNada, null, IDS), /riesgo/, 'sin riesgo ni color elegido no se mueve');
+  assert.deepEqual(labelsParaAgente(sinNada, 'amarillo', IDS), { addedLabelIds: ['id-agente', 'id-amarillo'], removedLabelIds: [LABEL.humano] });
   const yaTiene = issue('W', { labels: { nodes: [{ id: 'v', name: 'verde', parent: { name: 'riesgo' } }] } });
-  assert.deepEqual(labelsParaAgente(yaTiene, 'rojo').addedLabelIds, [LABEL.agente], 'no le pone un segundo color');
+  assert.deepEqual(labelsParaAgente(yaTiene, 'rojo', IDS).addedLabelIds, ['id-agente'], 'no le pone un segundo color');
+});
+
+test('las etiquetas se reconocen por nombre: sirve en cualquier workspace', () => {
+  const g = clasificar([issue('Z', { labels: { nodes: [{ id: 'otro-id', name: '👤 LISTO-para-humano ' }] } })]);
+  assert.equal(g.ahora.length, 1);
+  const sinEtiqueta = issue('X', { labels: { nodes: [lab(LABEL.humano)] } });
+  assert.throws(() => labelsParaAgente(sinEtiqueta, 'verde', {}), /Preparar mi Linear/, 'si el workspace no tiene la etiqueta, dice cómo crearla');
 });
 
 test('delegado a un agente va a Para agente aunque esté In Progress, salvo en review', () => {
