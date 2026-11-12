@@ -86,14 +86,14 @@ async function capturaPopup(tab) {
 
 const icono = `data:image/png;base64,${(await readFile(join(raiz, 'icons/icon128.png'))).toString('base64')}`;
 
-function lienzo({ w, h, titulo, texto, img }) {
+function lienzo({ w, h, titulo, texto, img, escala = 1.18 }) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     body{margin:0;width:${w}px;height:${h}px;display:flex;align-items:center;gap:56px;padding:0 72px;box-sizing:border-box;
       font-family:system-ui,sans-serif;background:#f4f4f7;color:#1f2023}
     .txt{flex:1} h1{font-size:${img ? 44 : 30}px;line-height:1.15;margin:0 0 16px} p{font-size:${img ? 22 : 16}px;line-height:1.45;color:#55585f;margin:0}
     .marca{display:flex;align-items:center;gap:12px;font-weight:600;margin-bottom:28px;font-size:${img ? 18 : 15}px}
     .marca img{width:${img ? 40 : 48}px;height:${img ? 40 : 48}px}
-    .pop{width:400px;height:580px;border-radius:12px;box-shadow:0 18px 48px rgba(20,20,40,.18);background:#fff;overflow:hidden;flex:none;transform:scale(1.18);transform-origin:center}
+    .pop{width:400px;height:580px;border-radius:12px;box-shadow:0 18px 48px rgba(20,20,40,.18);background:#fff;overflow:hidden;flex:none;transform:scale(${escala});transform-origin:center}
     .pop img{width:400px;height:580px;display:block}
   </style></head><body><div class="txt"><div class="marca"><img src="${icono}">¿Qué sigue?</div><h1>${titulo}</h1><p>${texto}</p></div>
   ${img ? `<div class="pop"><img src="${img}"></div>` : ''}</body></html>`;
@@ -114,6 +114,8 @@ await guardar('captura-1-que-sigue.png', { w: 1280, h: 800, img: ahora,
   titulo: 'Lo siguiente, sin abrir Linear', texto: 'Tu issue más urgente arriba, lo que va a un agente con su semáforo de riesgo y lo que está atorado.' });
 await guardar('captura-2-recordatorios.png', { w: 1280, h: 800, img: rec,
   titulo: 'Recordatorios escritos como hablas', texto: '“10am revisar propuesta”, “en 30 min llamar”. Una vez, diario o de lunes a viernes.' });
+await guardar('marquesina-1400x560.png', { w: 1400, h: 560, img: ahora, escala: 0.86,
+  titulo: 'Tu día en Linear, en un clic', texto: 'Qué sigue, qué va a un agente con su semáforo de riesgo y qué está atorado. Gratis y de código abierto.' });
 await guardar('mosaico-440x280.png', { w: 440, h: 280,
   titulo: 'Tu día en Linear, en un clic', texto: 'Qué sigue, qué va a un agente y qué está atorado.' });
 
