@@ -1,8 +1,8 @@
-import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA } from './lib/estado.js';
+import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
-import { empezar, moverAAgente, actualizar, opcionesDelTeam, TOPE } from './lib/linear.js';
-import { listoParaClaude, dispararTaskAI, mandadoHacePoco } from './lib/taskai.js';
+import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, TOPE } from './lib/linear.js';
+import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento, prsDe } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -32,6 +32,9 @@ function meta(issue) {
   const partes = [issue.team?.key, issue.state?.name];
   if (issue.dueDate) partes.push(`vence ${issue.dueDate}`);
   if (issue.delegate) partes.push(`🤖 ${issue.delegate.name} lo trabaja`);
+  // El repo que TaskAI tiene que tener conectado para hacer el issue.
+  const { repo, varios } = repoParaClaude(issue);
+  partes.push(repo ? `📦 ${repo}` : varios ? '📦 varios repos' : '📦 sin repo');
   return partes.filter(Boolean).join(' · ');
 }
 
@@ -100,6 +103,7 @@ function tarjetaTuya(issue, grande = false) {
     el('div', { class: 'meta' }, meta(issue)),
     grande && texto ? el('div', { class: 'meta' }, texto) : null,
     listoCuando ? el('div', { class: 'listo' }, el('b', {}, 'Listo cuando: '), listoCuando) : null,
+    lineaPRs(issue),
     el('div', { class: 'acciones' },
       enCurso
         ? el('button', { onclick: () => chrome.tabs.create({ url: issue.url }) }, 'Abrir')
@@ -117,7 +121,8 @@ function tarjetaTuya(issue, grande = false) {
       botonCopiar(issue),
       botonAgente(issue),
       // En tus tarjetas solo sale si ya está listo; en "Para agente" sale siempre y dice qué falta.
-      listoParaClaude(issue).listo ? botonTaskAI(issue) : null,
+      botonTaskAI(issue),
+      botonDelegar(issue),
       botonEditar(issue),
       botonRecordar(issue)));
 }
@@ -168,47 +173,158 @@ function tarjetaAgente(issue) {
   return el('div', { class: 'item' },
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)} · ${nota}`),
+    lineaPRs(issue),
     // Los que ya tienen 🤖 pero nadie los trabaja: un clic para que el agente los tome.
     el('div', { class: 'acciones' },
       botonTaskAI(issue),
       botonCopiar(issue),
       issue.delegate || !ajustes.agente ? null : botonAgente(issue, `Delegar a ${ajustes.agente}`),
+      botonDelegar(issue),
       botonEditar(issue)));
 }
 
 /**
+ * Ventanita encima del popup: título, texto y botones. Regresa `{ cambiar, cerrar }`
+ * para reusarla de "¿Lo mando?" a "Lanzando…" a "✅ Lanzado". Clic fuera la cierra.
+ */
+function modal({ titulo, texto = '', cuerpo = null, botones = [], tono = '' }) {
+  document.querySelector('.modal-fondo')?.remove();
+  const caja = el('div', { class: `modal ${tono}`, role: 'dialog', 'aria-modal': 'true' });
+  const fondo = el('div', { class: 'modal-fondo', onclick: (e) => { if (e.target === fondo) cerrar(); } }, caja);
+  const cerrar = () => fondo.remove();
+  const cambiar = (o) => {
+    caja.className = `modal ${o.tono || ''}`;
+    // replaceChildren pinta `null` como texto: lo vacío se quita.
+    caja.replaceChildren(...[
+      el('h3', {}, o.titulo),
+      o.texto ? el('p', {}, o.texto) : null,
+      o.cuerpo,
+      el('div', { class: 'acciones' }, ...(o.botones || []).map((b) =>
+        b.href
+          ? el('a', { class: `boton ${b.primario ? 'primario' : ''}`, href: b.href, target: '_blank' }, b.texto)
+          : el('button', { class: b.primario ? 'primario' : '', onclick: () => (b.onclick ? b.onclick() : cerrar()) }, b.texto))),
+    ].filter(Boolean));
+  };
+  cambiar({ titulo, texto, cuerpo, botones, tono });
+  document.body.append(fondo);
+  return { cambiar, cerrar };
+}
+
+/**
  * Manda el issue a TaskAI (la tarea de Claude que hace el issue y deja el PR a revisión).
- * Apagado si no cumple lo que la tarea pide: dice qué falta en vez de dispararla en balde.
+ * Sale en todas las tarjetas. Todo pasa en un modal: si al issue le falta algo, lo dice
+ * y deja arreglar ahí mismo lo que se puede (🤖 y color); si está listo, pregunta,
+ * enseña "Lanzando…" y deja el resultado: ✅ Lanzado o ❌ No se lanzó.
  */
 function botonTaskAI(issue) {
   const { listo, falta } = listoParaClaude(issue);
   return el('button', {
     class: listo ? 'primario' : '',
-    disabled: listo ? false : 'disabled',
-    title: listo ? 'Claude lo hace y te deja el PR a revisión, sin fusionar' : `Falta: ${falta.join(', ')}`,
-    onclick: async (e) => {
-      const boton = e.currentTarget;
-      if (boton.disabled) return;
-      // Cada disparo abre una sesión nueva de Claude: dos clics = dos PRs.
-      const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
-      const pregunta = mandadoHacePoco(enviadosTaskAI, issue.identifier)
-        ? `${issue.identifier} ya se mandó a Claude hace menos de 30 min. ¿Mandarlo otra vez? Se abriría otra sesión.`
-        : `¿Mandar ${issue.identifier} a Claude? Lo hace y te deja el PR a revisión.`;
-      if (!confirm(pregunta)) return;
-      boton.disabled = true;
+    title: listo ? 'Claude lo hace y te deja el PR a revisión, sin fusionar' : `Antes falta: ${falta.join(', ')}`,
+    onclick: () => abrirTaskAI(issue),
+  }, listo ? '🤖 Mandar a Claude' : `🤖 Mandar a Claude · falta ${falta.length}`);
+}
+
+async function abrirTaskAI(issue, m = null) {
+  const c = await config();
+  const mostrar = (o) => (m ? m.cambiar(o) : (m = modal(o)));
+  const { listo, falta, repo } = listoParaClaude(issue);
+
+  if (!listo) {
+    const color = riesgo(issue);
+    const arreglable = falta.every((f) => f === '🤖 listo-para-agente' || f === 'riesgo');
+    const poner = (nuevo) => async () => {
+      mostrar({ titulo: `Preparando ${issue.identifier}…` });
+      try {
+        await actualizar(c.llave, issue.id, labelsParaAgente(issue, nuevo));
+        const extra = [{ id: LABEL.agente, name: '🤖 listo-para-agente' }];
+        if (nuevo && !color) extra.push({ id: RIESGO[nuevo], name: nuevo });
+        await abrirTaskAI({ ...issue, labels: { nodes: [...(issue.labels?.nodes || []), ...extra] } }, m);
+        chrome.runtime.sendMessage({ tipo: 'refrescar' }).then(pintar);
+      } catch (err) {
+        mostrar({ tono: 'mal', titulo: '❌ No pude prepararlo', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+      }
+    };
+    const lista = el('ul', { class: 'falta' }, ...falta.map((f) => el('li', {}, AYUDA[f] || f)));
+    const botones = color === 'rojo'
+      ? [{ texto: 'Abrir en Linear', href: issue.url, primario: true }, { texto: 'Cerrar' }]
+      : arreglable
+        ? (color
+          ? [{ texto: 'Ponerle 🤖 y mandarlo', primario: true, onclick: poner(null) }]
+          : [{ texto: '🤖 verde', primario: true, onclick: poner('verde') }, { texto: '🤖 amarillo', onclick: poner('amarillo') }])
+          .concat([{ texto: 'Cancelar' }])
+        : [{ texto: 'Abrir en Linear', href: issue.url, primario: true }, { texto: 'Cerrar' }];
+    return mostrar({ tono: 'ojo', titulo: `${issue.identifier} todavía no está listo para Claude`,
+      texto: arreglable && color !== 'rojo' ? 'Lo arreglas desde aquí:' : 'Esto se arregla en el issue, en Linear:', cuerpo: lista, botones });
+  }
+
+  if (!c.tokenTaskAI) {
+    return mostrar({ tono: 'mal', titulo: '❌ No se lanzó', texto: 'Falta el token de TaskAI. Genéralo en claude.ai/code/routines → TaskAI → disparo por API, y pégalo en Ajustes.',
+      botones: [{ texto: 'Abrir Ajustes', primario: true, onclick: () => chrome.runtime.openOptionsPage() }, { texto: 'Cerrar' }] });
+  }
+  // Cada disparo abre una sesión nueva de Claude: dos clics = dos PRs.
+  const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
+  const repetido = mandadoHacePoco(enviadosTaskAI, issue.identifier);
+  const lanzar = async () => {
+    mostrar({ titulo: `Lanzando ${issue.identifier}…`, texto: 'Hablando con TaskAI.' });
+    try {
+      const r = await dispararTaskAI({ token: c.tokenTaskAI, rutina: c.rutinaTaskAI, issueId: issue.identifier });
+      await chrome.storage.local.set({ enviadosTaskAI: { ...enviadosTaskAI, [issue.identifier]: Date.now() } });
+      mostrar({ tono: 'bien', titulo: `✅ Lanzado: ${issue.identifier}`,
+        texto: `TaskAI lo recibió (${r.status}). Claude ya está trabajando; el PR llega a Internal Review y te comenta en el issue.`,
+        botones: [r.url ? { texto: 'Ver la sesión', href: r.url, primario: true } : null, { texto: 'Listo' }].filter(Boolean) });
+    } catch (err) {
+      mostrar({ tono: 'mal', titulo: '❌ No se lanzó', texto: err.message,
+        botones: [{ texto: 'Reintentar', primario: true, onclick: lanzar }, { texto: 'Cerrar' }] });
+    }
+  };
+  mostrar({
+    tono: repetido ? 'ojo' : '',
+    titulo: repetido ? `${issue.identifier} ya se mandó hace poco` : `¿Mandar ${issue.identifier} a Claude?`,
+    texto: repetido ? 'Se mandó hace menos de 30 min. Si lo mandas otra vez se abre otra sesión y saldría otro PR.' : `${issue.title}. Claude lo hace y te deja el PR a revisión, sin fusionar.`,
+    cuerpo: el('p', { class: 'repo' }, '📦 Repo: ', el('b', {}, repo), el('br'), 'TaskAI tiene que tenerlo conectado en claude.ai/code/routines. Si no, comenta "falta agregar" en el issue y no lo hace.'),
+    botones: [{ texto: repetido ? 'Mandar otra vez' : 'Mandar', primario: true, onclick: lanzar }, { texto: 'Cancelar' }],
+  });
+}
+
+const AYUDA = {
+  '🤖 listo-para-agente': 'La etiqueta 🤖 listo-para-agente',
+  riesgo: 'El color de riesgo: verde o amarillo',
+  'riesgo verde o amarillo (es rojo)': 'Es rojo: ese no lo hace un agente, lo haces tú',
+  repo: 'El repo: escribe gneuman/<repo> en la descripción o liga el repo al proyecto',
+  'un solo repo (trae varios)': 'Un solo repo: la descripción menciona varios; parte el issue',
+  '"Listo cuando"': 'Una sección "Listo cuando" con lo que se tiene que comprobar',
+};
+
+/** Asignar el issue a otra persona del team, en un modal. */
+function botonDelegar(issue) {
+  return el('button', {
+    title: 'Asignárselo a otra persona del equipo',
+    onclick: async () => {
+      const m = modal({ titulo: `Delegar ${issue.identifier}`, texto: 'Cargando al equipo…' });
       try {
         const c = await config();
-        avisar(`Mandando ${issue.identifier} a TaskAI…`, true);
-        const r = await dispararTaskAI({ token: c.tokenTaskAI, rutina: c.rutinaTaskAI, issueId: issue.identifier });
-        await chrome.storage.local.set({ enviadosTaskAI: { ...enviadosTaskAI, [issue.identifier]: Date.now() } });
-        avisar(`${issue.identifier} → TaskAI (${r.status}). Te deja el PR a revisión.`, true);
-        if (r.url) $('#aviso').append(' ', el('a', { href: r.url, target: '_blank' }, 'Ver sesión'));
+        const { personas } = await opcionesDe(c.llave, issue.team.id);
+        const sel = el('select', { class: 'modal-select' },
+          ...personas.map((p) => el('option', { value: p.id, selected: p.id === issue.assignee?.id ? 'selected' : false }, p.name)));
+        m.cambiar({ titulo: `Delegar ${issue.identifier}`, texto: issue.title, cuerpo: sel,
+          botones: [{ texto: 'Asignar', primario: true, onclick: async () => {
+            const nombre = sel.selectedOptions[0].text;
+            m.cambiar({ titulo: `Asignando a ${nombre}…` });
+            try {
+              await actualizar(c.llave, issue.id, { assigneeId: sel.value });
+              m.cambiar({ tono: 'bien', titulo: `✅ ${issue.identifier} ahora es de ${nombre}`, texto: 'Ya está en Linear. Le llega la notificación.', botones: [{ texto: 'Listo' }] });
+              await chrome.runtime.sendMessage({ tipo: 'refrescar' });
+              await pintar();
+            } catch (err) {
+              m.cambiar({ tono: 'mal', titulo: '❌ No se asignó', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+            }
+          } }, { texto: 'Cancelar' }] });
       } catch (err) {
-        avisar(err.message);
-        boton.disabled = false;
+        m.cambiar({ tono: 'mal', titulo: '❌ No pude cargar al equipo', texto: err.message, botones: [{ texto: 'Cerrar' }] });
       }
     },
-  }, listo ? 'Mandar a Claude' : `Claude: falta ${falta[0]}`);
+  }, 'Delegar a…');
 }
 
 // Estados y personas por team: se piden una vez por popup abierto.
@@ -251,12 +367,43 @@ function botonEditar(issue) {
   }, 'Editar');
 }
 
+/**
+ * Los PR que Linear ya tiene ligados al issue, con liga directa. Si alguno ya se
+ * fusionó y el issue sigue abierto, lo dice y ofrece pasarlo a Done: no hace
+ * falta mandarlo a Claude para descubrir que ya está hecho.
+ */
+function lineaPRs(issue) {
+  const prs = prsDe(issue);
+  if (!prs.length) return null;
+  const fusionado = prs.some((p) => p.estado === 'fusionado');
+  return el('div', { class: `prs ${fusionado ? 'fusionado' : ''}` },
+    '🔀 ',
+    ...prs.flatMap((p, i) => [i ? ' · ' : '', el('a', { href: p.url, target: '_blank', title: p.titulo }, `PR #${p.numero}`), p.estado ? ` ${p.estado}` : '']),
+    fusionado ? el('span', {}, ' — ya está hecho. ', el('button', { onclick: () => confirmarDone(issue) }, 'Pasar a Done')) : null);
+}
+
+function confirmarDone(issue, despues = pintar) {
+  const m = modal({ titulo: `¿Pasar ${issue.identifier} a Done?`, texto: issue.title, botones: [{ texto: 'Pasar a Done', primario: true, onclick: async () => {
+    m.cambiar({ titulo: `Cerrando ${issue.identifier}…` });
+    try {
+      const c = await config();
+      await terminar(c.llave, issue);
+      m.cambiar({ tono: 'bien', titulo: `✅ ${issue.identifier} en Done`, botones: [{ texto: 'Listo' }] });
+      await chrome.runtime.sendMessage({ tipo: 'refrescar' });
+      await despues();
+    } catch (err) {
+      m.cambiar({ tono: 'mal', titulo: '❌ No se cerró', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+    }
+  } }, { texto: 'Cancelar' }] });
+}
+
 function tarjetaAtorada(issue) {
   const dias = issue.dias == null ? '' : ` · ${issue.dias} d sin moverse`;
   return el('div', { class: 'item' },
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)}${dias}`),
-    el('div', { class: 'acciones' }, botonCopiar(issue), botonEditar(issue), botonRecordar(issue)));
+    lineaPRs(issue),
+    el('div', { class: 'acciones' }, botonTaskAI(issue), botonCopiar(issue), botonDelegar(issue), botonEditar(issue), botonRecordar(issue)));
 }
 
 /** Notas por issue que le sirven a Claude: riesgo, "Listo cuando" y días sin moverse. */
@@ -392,6 +539,51 @@ function selectorDeProyecto(proyectos, sinProyecto, actual) {
     sinProyecto ? opcion(SIN_PROYECTO, `Sin proyecto (${sinProyecto})`) : null));
 }
 
+/**
+ * Pestaña TaskAI: lo que mandaste a Claude y lo que TaskAI comentó, con qué te toca.
+ * Arriba lo que espera algo de ti; luego lo que sigue trabajando. Lo cerrado no sale.
+ */
+async function pintarTaskAI() {
+  const main = $('#taskai');
+  const c = await config();
+  if (!c.llave) return main.replaceChildren(el('p', { class: 'vacio' }, 'Conecta Linear en Ajustes.'));
+  main.replaceChildren(el('p', { class: 'vacio' }, 'Revisando lo que hizo TaskAI…'));
+  try {
+    const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
+    const issues = await issuesTaskAI(c.llave, Object.keys(enviadosTaskAI));
+    const filas = issues
+      .filter((i) => !['completed', 'canceled', 'duplicate'].includes(i.state?.type))
+      .map((i) => ({ issue: i, s: seguimiento(i, enviadosTaskAI[i.identifier] || null) }));
+    const tuyos = filas.filter((f) => f.s.teToca);
+    const resto = filas.filter((f) => !f.s.teToca);
+    $('#n-taskai').textContent = tuyos.length ? `(${tuyos.length}!)` : '';
+    if (!filas.length) return main.replaceChildren(el('p', { class: 'vacio' }, 'Nada abierto de TaskAI. Lo que mandes con "Mandar a Claude" sale aquí.'));
+    main.replaceChildren(...[
+      el('h2', {}, `Te toca (${tuyos.length})`),
+      ...(tuyos.length ? tuyos.map(tarjetaTaskAI) : [el('p', { class: 'vacio' }, 'Nada esperándote.')]),
+      resto.length ? el('h2', {}, `En curso o sin acción (${resto.length})`) : null,
+      ...resto.map(tarjetaTaskAI),
+    ].filter(Boolean));
+  } catch (err) {
+    main.replaceChildren(el('p', { class: 'aviso' }, err.message));
+  }
+}
+
+function tarjetaTaskAI({ issue, s }) {
+  const pr = s.liga && /github\.com\/.+\/pull\/\d+/.test(s.liga) ? s.liga : null;
+  return el('div', { class: 'item' },
+    el('div', { class: 'fila' },
+      el('span', { class: 'id' }, issue.identifier),
+      el('span', { class: 'titulo' }, el('a', { href: issue.url, target: '_blank' }, issue.title))),
+    el('div', { class: 'meta' }, `${issue.state?.name || ''}${s.cuando ? ` · ${new Date(s.cuando).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}` : ''}`),
+    el('div', { class: 'listo' }, `${s.emoji} ${s.resultado}`),
+    s.teToca ? el('div', { class: 'te-toca' }, '👉 ', el('b', {}, 'Te toca: '), s.teToca) : null,
+    el('div', { class: 'acciones' },
+      pr ? el('a', { class: 'boton primario', href: pr, target: '_blank' }, 'Ver PR') : null,
+      el('a', { class: 'boton', href: issue.url, target: '_blank' }, 'Abrir issue'),
+      el('button', { onclick: () => confirmarDone(issue, pintarTaskAI) }, 'Pasar a Done')));
+}
+
 const REPETIR = { no: '', diario: ' · diario', laborables: ' · L a V' };
 
 function cuando(at) {
@@ -475,6 +667,8 @@ for (const b of document.querySelectorAll('[data-tab]')) {
     for (const x of document.querySelectorAll('[data-tab]')) x.classList.toggle('activa', x === b);
     $('#ahora').hidden = b.dataset.tab !== 'ahora';
     $('#recordatorios').hidden = b.dataset.tab !== 'recordatorios';
+    $('#taskai').hidden = b.dataset.tab !== 'taskai';
+    if (b.dataset.tab === 'taskai') pintarTaskAI();
   });
 }
 $('#ajustes').addEventListener('click', () => chrome.runtime.openOptionsPage());

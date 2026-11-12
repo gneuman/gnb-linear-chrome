@@ -96,3 +96,40 @@ test('mandadoHacePoco: pregunta antes de mandar dos veces el mismo issue', () =>
   assert.equal(mandadoHacePoco({ 'INT-7': ahora - ESPERA_REENVIO - 1 }, 'INT-7', ahora), false);
   assert.equal(mandadoHacePoco({}, 'INT-7', ahora), false);
 });
+
+import { leerResultado, seguimiento } from '../lib/taskai.js';
+
+test('leerResultado: formato de tres líneas', () => {
+  const r = leerResultado('TaskAI · ⏭ Ya estaba hecho (PR #118)\n👉 Te toca: Pásalo a Done\n🔗 https://github.com/gneuman/gnb-meta/pull/118\n\nDetalle…');
+  assert.deepEqual(r, { emoji: '⏭', resultado: 'Ya estaba hecho (PR #118)', teToca: 'Pásalo a Done', liga: 'https://github.com/gneuman/gnb-meta/pull/118' });
+});
+
+test('leerResultado: formato viejo y comentarios ajenos', () => {
+  const r = leerResultado('TaskAI: PR listo https://github.com/gneuman/x/pull/3 pasa en todo');
+  assert.equal(r.emoji, '💬');
+  assert.equal(r.liga, 'https://github.com/gneuman/x/pull/3');
+  assert.equal(leerResultado('Boti: lo reviso'), null);
+});
+
+test('seguimiento: trabajando, resultado o sin respuesta', () => {
+  const enviado = Date.parse('2026-11-12T15:00:00Z');
+  const sinNada = { comments: { nodes: [{ body: 'TaskAI · ✅ viejo', createdAt: '2026-11-10T00:00:00Z' }] } };
+  assert.equal(seguimiento(sinNada, enviado, enviado + 60_000).emoji, '⏳', 'un comentario de antes del envío no cuenta');
+  assert.equal(seguimiento(sinNada, enviado, enviado + 3 * 3600_000).emoji, '⚠️');
+  const listo = { comments: { nodes: [{ body: 'TaskAI · ✅ PR listo\n👉 Te toca: Revisa y fusiona\n🔗 https://github.com/a/b/pull/1', createdAt: '2026-11-12T15:20:00Z' }] } };
+  assert.equal(seguimiento(listo, enviado).teToca, 'Revisa y fusiona');
+});
+
+import { prsDe } from '../lib/taskai.js';
+
+test('prsDe: los PR ligados en Linear, con estado si viene', () => {
+  const issue = { attachments: { nodes: [
+    { url: 'https://github.com/gneuman/gnb-meta/pull/118', title: 'actualizar: organigrama', metadata: { status: 'merged' } },
+    { url: 'https://github.com/gneuman/x/pull/3' },
+    { url: 'https://figma.com/a' },
+  ] } };
+  assert.deepEqual(prsDe(issue), [
+    { repo: 'gneuman/gnb-meta', numero: 118, url: 'https://github.com/gneuman/gnb-meta/pull/118', titulo: 'actualizar: organigrama', estado: 'fusionado' },
+    { repo: 'gneuman/x', numero: 3, url: 'https://github.com/gneuman/x/pull/3', titulo: '', estado: null },
+  ]);
+});
