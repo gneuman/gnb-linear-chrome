@@ -1,7 +1,7 @@
 import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
-import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, TOPE } from './lib/linear.js';
+import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, TOPE } from './lib/linear.js';
 import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento, prsDe } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
@@ -122,6 +122,7 @@ function tarjetaTuya(issue, grande = false) {
       botonAgente(issue),
       // En tus tarjetas solo sale si ya está listo; en "Para agente" sale siempre y dice qué falta.
       botonTaskAI(issue),
+      botonComentar(issue),
       botonDelegar(issue),
       botonEditar(issue),
       botonRecordar(issue)));
@@ -179,6 +180,7 @@ function tarjetaAgente(issue) {
       botonTaskAI(issue),
       botonCopiar(issue),
       issue.delegate || !ajustes.agente ? null : botonAgente(issue, `Delegar a ${ajustes.agente}`),
+      botonComentar(issue),
       botonDelegar(issue),
       botonEditar(issue)));
 }
@@ -327,6 +329,34 @@ function botonDelegar(issue) {
   }, 'Delegar a…');
 }
 
+/** Dejar un comentario en Linear sin abrir el issue. Ctrl+Enter lo manda. */
+function botonComentar(issue) {
+  return el('button', {
+    title: 'Dejar un comentario en Linear',
+    onclick: () => {
+      const caja = el('textarea', { class: 'modal-texto', rows: '4', placeholder: 'Tu comentario…' });
+      let m;
+      const mandar = async () => {
+        const texto = caja.value;
+        if (!texto.trim()) { caja.focus(); return; }
+        m.cambiar({ titulo: 'Comentando…' });
+        try {
+          const c = await config();
+          await comentar(c.llave, issue.id, texto);
+          m.cambiar({ tono: 'bien', titulo: `✅ Comentario en ${issue.identifier}`, texto: 'Ya está en Linear.', botones: [{ texto: 'Listo' }] });
+        } catch (err) {
+          // El texto no se pierde: vuelve a la caja para reintentar.
+          m.cambiar({ tono: 'mal', titulo: '❌ No se comentó', texto: err.message, cuerpo: caja, botones: [{ texto: 'Reintentar', primario: true, onclick: mandar }, { texto: 'Cerrar' }] });
+        }
+      };
+      caja.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) mandar(); });
+      m = modal({ titulo: `Comentar en ${issue.identifier}`, texto: issue.title, cuerpo: caja,
+        botones: [{ texto: 'Comentar', primario: true, onclick: mandar }, { texto: 'Cancelar' }] });
+      caja.focus();
+    },
+  }, '💬 Comentar');
+}
+
 // Estados y personas por team: se piden una vez por popup abierto.
 const opciones = new Map();
 function opcionesDe(llave, teamId) {
@@ -403,7 +433,7 @@ function tarjetaAtorada(issue) {
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)}${dias}`),
     lineaPRs(issue),
-    el('div', { class: 'acciones' }, botonTaskAI(issue), botonCopiar(issue), botonDelegar(issue), botonEditar(issue), botonRecordar(issue)));
+    el('div', { class: 'acciones' }, botonTaskAI(issue), botonCopiar(issue), botonComentar(issue), botonDelegar(issue), botonEditar(issue), botonRecordar(issue)));
 }
 
 /** Notas por issue que le sirven a Claude: riesgo, "Listo cuando" y días sin moverse. */
