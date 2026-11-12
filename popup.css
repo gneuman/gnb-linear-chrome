@@ -71,3 +71,4 @@ a.boton.primario { background: var(--acento); border-color: var(--acento); color
 .modal ul.falta { margin: 0 0 8px; padding-left: 18px; }
 .modal ul.falta li { margin: 2px 0; }
 .modal p.repo { color: var(--fg); background: var(--tarjeta); border: 1px solid var(--linea); border-radius: 6px; padding: 6px 8px; }
+.te-toca { margin-top: 4px; padding: 4px 6px; border-left: 3px solid var(--amarillo); background: var(--bg); font-size: 12px; }

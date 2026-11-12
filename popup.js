@@ -1,8 +1,8 @@
 import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
-import { empezar, moverAAgente, actualizar, opcionesDelTeam, TOPE } from './lib/linear.js';
-import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco } from './lib/taskai.js';
+import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, TOPE } from './lib/linear.js';
+import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -506,6 +506,65 @@ function selectorDeProyecto(proyectos, sinProyecto, actual) {
     sinProyecto ? opcion(SIN_PROYECTO, `Sin proyecto (${sinProyecto})`) : null));
 }
 
+/**
+ * Pestaña TaskAI: lo que mandaste a Claude y lo que TaskAI comentó, con qué te toca.
+ * Arriba lo que espera algo de ti; luego lo que sigue trabajando. Lo cerrado no sale.
+ */
+async function pintarTaskAI() {
+  const main = $('#taskai');
+  const c = await config();
+  if (!c.llave) return main.replaceChildren(el('p', { class: 'vacio' }, 'Conecta Linear en Ajustes.'));
+  main.replaceChildren(el('p', { class: 'vacio' }, 'Revisando lo que hizo TaskAI…'));
+  try {
+    const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
+    const issues = await issuesTaskAI(c.llave, Object.keys(enviadosTaskAI));
+    const filas = issues
+      .filter((i) => !['completed', 'canceled', 'duplicate'].includes(i.state?.type))
+      .map((i) => ({ issue: i, s: seguimiento(i, enviadosTaskAI[i.identifier] || null) }));
+    const tuyos = filas.filter((f) => f.s.teToca);
+    const resto = filas.filter((f) => !f.s.teToca);
+    $('#n-taskai').textContent = tuyos.length ? `(${tuyos.length}!)` : '';
+    if (!filas.length) return main.replaceChildren(el('p', { class: 'vacio' }, 'Nada abierto de TaskAI. Lo que mandes con "Mandar a Claude" sale aquí.'));
+    main.replaceChildren(...[
+      el('h2', {}, `Te toca (${tuyos.length})`),
+      ...(tuyos.length ? tuyos.map(tarjetaTaskAI) : [el('p', { class: 'vacio' }, 'Nada esperándote.')]),
+      resto.length ? el('h2', {}, `En curso o sin acción (${resto.length})`) : null,
+      ...resto.map(tarjetaTaskAI),
+    ].filter(Boolean));
+  } catch (err) {
+    main.replaceChildren(el('p', { class: 'aviso' }, err.message));
+  }
+}
+
+function tarjetaTaskAI({ issue, s }) {
+  const pr = s.liga && /github\.com\/.+\/pull\/\d+/.test(s.liga) ? s.liga : null;
+  return el('div', { class: 'item' },
+    el('div', { class: 'fila' },
+      el('span', { class: 'id' }, issue.identifier),
+      el('span', { class: 'titulo' }, el('a', { href: issue.url, target: '_blank' }, issue.title))),
+    el('div', { class: 'meta' }, `${issue.state?.name || ''}${s.cuando ? ` · ${new Date(s.cuando).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}` : ''}`),
+    el('div', { class: 'listo' }, `${s.emoji} ${s.resultado}`),
+    s.teToca ? el('div', { class: 'te-toca' }, '👉 ', el('b', {}, 'Te toca: '), s.teToca) : null,
+    el('div', { class: 'acciones' },
+      pr ? el('a', { class: 'boton primario', href: pr, target: '_blank' }, 'Ver PR') : null,
+      el('a', { class: 'boton', href: issue.url, target: '_blank' }, 'Abrir issue'),
+      el('button', {
+        onclick: () => {
+          const m = modal({ titulo: `¿Pasar ${issue.identifier} a Done?`, texto: issue.title, botones: [{ texto: 'Pasar a Done', primario: true, onclick: async () => {
+            m.cambiar({ titulo: `Cerrando ${issue.identifier}…` });
+            try {
+              const c = await config();
+              await terminar(c.llave, issue);
+              m.cambiar({ tono: 'bien', titulo: `✅ ${issue.identifier} en Done`, botones: [{ texto: 'Listo' }] });
+              await pintarTaskAI();
+            } catch (err) {
+              m.cambiar({ tono: 'mal', titulo: '❌ No se cerró', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+            }
+          } }, { texto: 'Cancelar' }] });
+        },
+      }, 'Pasar a Done')));
+}
+
 const REPETIR = { no: '', diario: ' · diario', laborables: ' · L a V' };
 
 function cuando(at) {
@@ -589,6 +648,8 @@ for (const b of document.querySelectorAll('[data-tab]')) {
     for (const x of document.querySelectorAll('[data-tab]')) x.classList.toggle('activa', x === b);
     $('#ahora').hidden = b.dataset.tab !== 'ahora';
     $('#recordatorios').hidden = b.dataset.tab !== 'recordatorios';
+    $('#taskai').hidden = b.dataset.tab !== 'taskai';
+    if (b.dataset.tab === 'taskai') pintarTaskAI();
   });
 }
 $('#ajustes').addEventListener('click', () => chrome.runtime.openOptionsPage());
