@@ -60,3 +60,11 @@ button.riesgo.amarillo { border-color: var(--amarillo); color: var(--amarillo); 
 button.riesgo.rojo { border-color: var(--rojo); color: var(--rojo); }
 .editar select { flex: 1; min-width: 0; border: 1px solid var(--linea); background: var(--bg); border-radius: 6px; padding: 3px 6px; font-size: 12px; }
 button:disabled { cursor: default; opacity: .55; }
+.modal-fondo { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.modal { background: var(--bg); border: 1px solid var(--linea); border-top: 4px solid var(--acento); border-radius: 10px; padding: 14px; width: 100%; max-width: 360px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.modal.bien { border-top-color: var(--verde); } .modal.mal { border-top-color: var(--rojo); } .modal.ojo { border-top-color: var(--amarillo); }
+.modal h3 { margin: 0 0 6px; font-size: 15px; }
+.modal p { margin: 0 0 8px; color: var(--suave); overflow-wrap: anywhere; }
+.modal-select { width: 100%; border: 1px solid var(--linea); background: var(--bg); border-radius: 6px; padding: 5px 6px; margin-bottom: 4px; }
+a.boton { display: inline-block; text-decoration: none; border: 1px solid var(--linea); background: var(--tarjeta); border-radius: 6px; padding: 4px 8px; color: inherit; }
+a.boton.primario { background: var(--acento); border-color: var(--acento); color: #fff; }

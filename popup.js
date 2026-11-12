@@ -118,6 +118,7 @@ function tarjetaTuya(issue, grande = false) {
       botonAgente(issue),
       // En tus tarjetas solo sale si ya está listo; en "Para agente" sale siempre y dice qué falta.
       listoParaClaude(issue).listo ? botonTaskAI(issue) : null,
+      botonDelegar(issue),
       botonEditar(issue),
       botonRecordar(issue)));
 }
@@ -173,12 +174,41 @@ function tarjetaAgente(issue) {
       botonTaskAI(issue),
       botonCopiar(issue),
       issue.delegate || !ajustes.agente ? null : botonAgente(issue, `Delegar a ${ajustes.agente}`),
+      botonDelegar(issue),
       botonEditar(issue)));
+}
+
+/**
+ * Ventanita encima del popup: título, texto y botones. Regresa `{ cambiar, cerrar }`
+ * para reusarla de "¿Lo mando?" a "Lanzando…" a "✅ Lanzado". Clic fuera la cierra.
+ */
+function modal({ titulo, texto = '', cuerpo = null, botones = [], tono = '' }) {
+  document.querySelector('.modal-fondo')?.remove();
+  const caja = el('div', { class: `modal ${tono}`, role: 'dialog', 'aria-modal': 'true' });
+  const fondo = el('div', { class: 'modal-fondo', onclick: (e) => { if (e.target === fondo) cerrar(); } }, caja);
+  const cerrar = () => fondo.remove();
+  const cambiar = (o) => {
+    caja.className = `modal ${o.tono || ''}`;
+    // replaceChildren pinta `null` como texto: lo vacío se quita.
+    caja.replaceChildren(...[
+      el('h3', {}, o.titulo),
+      o.texto ? el('p', {}, o.texto) : null,
+      o.cuerpo,
+      el('div', { class: 'acciones' }, ...(o.botones || []).map((b) =>
+        b.href
+          ? el('a', { class: `boton ${b.primario ? 'primario' : ''}`, href: b.href, target: '_blank' }, b.texto)
+          : el('button', { class: b.primario ? 'primario' : '', onclick: () => (b.onclick ? b.onclick() : cerrar()) }, b.texto))),
+    ].filter(Boolean));
+  };
+  cambiar({ titulo, texto, cuerpo, botones, tono });
+  document.body.append(fondo);
+  return { cambiar, cerrar };
 }
 
 /**
  * Manda el issue a TaskAI (la tarea de Claude que hace el issue y deja el PR a revisión).
  * Apagado si no cumple lo que la tarea pide: dice qué falta en vez de dispararla en balde.
+ * Todo el ida y vuelta va en un modal: se pregunta, se ve "Lanzando…" y queda el resultado.
  */
 function botonTaskAI(issue) {
   const { listo, falta } = listoParaClaude(issue);
@@ -186,29 +216,67 @@ function botonTaskAI(issue) {
     class: listo ? 'primario' : '',
     disabled: listo ? false : 'disabled',
     title: listo ? 'Claude lo hace y te deja el PR a revisión, sin fusionar' : `Falta: ${falta.join(', ')}`,
-    onclick: async (e) => {
-      const boton = e.currentTarget;
-      if (boton.disabled) return;
+    onclick: async () => {
+      const c = await config();
+      if (!c.tokenTaskAI) {
+        return modal({ tono: 'mal', titulo: '❌ No se lanzó', texto: 'Falta el token de TaskAI. Genéralo en claude.ai/code/routines → TaskAI → disparo por API, y pégalo en Ajustes.',
+          botones: [{ texto: 'Abrir Ajustes', primario: true, onclick: () => chrome.runtime.openOptionsPage() }, { texto: 'Cerrar' }] });
+      }
       // Cada disparo abre una sesión nueva de Claude: dos clics = dos PRs.
       const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
-      const pregunta = mandadoHacePoco(enviadosTaskAI, issue.identifier)
-        ? `${issue.identifier} ya se mandó a Claude hace menos de 30 min. ¿Mandarlo otra vez? Se abriría otra sesión.`
-        : `¿Mandar ${issue.identifier} a Claude? Lo hace y te deja el PR a revisión.`;
-      if (!confirm(pregunta)) return;
-      boton.disabled = true;
-      try {
-        const c = await config();
-        avisar(`Mandando ${issue.identifier} a TaskAI…`, true);
-        const r = await dispararTaskAI({ token: c.tokenTaskAI, rutina: c.rutinaTaskAI, issueId: issue.identifier });
-        await chrome.storage.local.set({ enviadosTaskAI: { ...enviadosTaskAI, [issue.identifier]: Date.now() } });
-        avisar(`${issue.identifier} → TaskAI (${r.status}). Te deja el PR a revisión.`, true);
-        if (r.url) $('#aviso').append(' ', el('a', { href: r.url, target: '_blank' }, 'Ver sesión'));
-      } catch (err) {
-        avisar(err.message);
-        boton.disabled = false;
+      const repetido = mandadoHacePoco(enviadosTaskAI, issue.identifier);
+      const m = modal({
+        tono: repetido ? 'ojo' : '',
+        titulo: repetido ? `${issue.identifier} ya se mandó hace poco` : `¿Mandar ${issue.identifier} a Claude?`,
+        texto: repetido ? 'Se mandó hace menos de 30 min. Si lo mandas otra vez se abre otra sesión y saldría otro PR.' : `${issue.title}. Claude lo hace y te deja el PR a revisión, sin fusionar.`,
+        botones: [{ texto: repetido ? 'Mandar otra vez' : 'Mandar', primario: true, onclick: () => lanzar() }, { texto: 'Cancelar' }],
+      });
+      async function lanzar() {
+        m.cambiar({ titulo: `Lanzando ${issue.identifier}…`, texto: 'Hablando con TaskAI.' });
+        try {
+          const r = await dispararTaskAI({ token: c.tokenTaskAI, rutina: c.rutinaTaskAI, issueId: issue.identifier });
+          await chrome.storage.local.set({ enviadosTaskAI: { ...enviadosTaskAI, [issue.identifier]: Date.now() } });
+          m.cambiar({ tono: 'bien', titulo: `✅ Lanzado: ${issue.identifier}`,
+            texto: `TaskAI lo recibió (${r.status}). Claude ya está trabajando; el PR llega a Internal Review y te comenta en el issue.`,
+            botones: [r.url ? { texto: 'Ver la sesión', href: r.url, primario: true } : null, { texto: 'Listo' }].filter(Boolean) });
+        } catch (err) {
+          m.cambiar({ tono: 'mal', titulo: '❌ No se lanzó', texto: err.message,
+            botones: [{ texto: 'Reintentar', primario: true, onclick: () => lanzar() }, { texto: 'Cerrar' }] });
+        }
       }
     },
   }, listo ? 'Mandar a Claude' : `Claude: falta ${falta[0]}`);
+}
+
+/** Asignar el issue a otra persona del team, en un modal. */
+function botonDelegar(issue) {
+  return el('button', {
+    title: 'Asignárselo a otra persona del equipo',
+    onclick: async () => {
+      const m = modal({ titulo: `Delegar ${issue.identifier}`, texto: 'Cargando al equipo…' });
+      try {
+        const c = await config();
+        const { personas } = await opcionesDe(c.llave, issue.team.id);
+        const sel = el('select', { class: 'modal-select' },
+          ...personas.map((p) => el('option', { value: p.id, selected: p.id === issue.assignee?.id ? 'selected' : false }, p.name)));
+        m.cambiar({ titulo: `Delegar ${issue.identifier}`, texto: issue.title, cuerpo: sel,
+          botones: [{ texto: 'Asignar', primario: true, onclick: async () => {
+            const nombre = sel.selectedOptions[0].text;
+            m.cambiar({ titulo: `Asignando a ${nombre}…` });
+            try {
+              await actualizar(c.llave, issue.id, { assigneeId: sel.value });
+              m.cambiar({ tono: 'bien', titulo: `✅ ${issue.identifier} ahora es de ${nombre}`, texto: 'Ya está en Linear. Le llega la notificación.', botones: [{ texto: 'Listo' }] });
+              await chrome.runtime.sendMessage({ tipo: 'refrescar' });
+              await pintar();
+            } catch (err) {
+              m.cambiar({ tono: 'mal', titulo: '❌ No se asignó', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+            }
+          } }, { texto: 'Cancelar' }] });
+      } catch (err) {
+        m.cambiar({ tono: 'mal', titulo: '❌ No pude cargar al equipo', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+      }
+    },
+  }, 'Delegar a…');
 }
 
 // Estados y personas por team: se piden una vez por popup abierto.
@@ -256,7 +324,7 @@ function tarjetaAtorada(issue) {
   return el('div', { class: 'item' },
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)}${dias}`),
-    el('div', { class: 'acciones' }, botonCopiar(issue), botonEditar(issue), botonRecordar(issue)));
+    el('div', { class: 'acciones' }, botonCopiar(issue), botonDelegar(issue), botonEditar(issue), botonRecordar(issue)));
 }
 
 /** Notas por issue que le sirven a Claude: riesgo, "Listo cuando" y días sin moverse. */
