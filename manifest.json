@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "¿Qué sigue?",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "homepage_url": "https://gabrielneuman.com",
   "description": "Tus issues de Linear y tus recordatorios: qué sigue, qué va a un agente y qué está atorado.",
   "permissions": ["storage", "alarms", "notifications", "identity", "identity.email", "unlimitedStorage"],

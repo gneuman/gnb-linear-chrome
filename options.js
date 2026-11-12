@@ -49,13 +49,13 @@ $('#f').addEventListener('submit', async (e) => {
       if (!u.users.nodes.length) throw new Error(`${correo} no es usuario de este Linear.`);
     }
     const rutinaTaskAI = $('#rutina-taskai').value.trim();
-    if (rutinaTaskAI && !/^trig_\w+$/.test(rutinaTaskAI)) throw new Error('El ID de la tarea empieza con trig_.');
+    if (rutinaTaskAI && !/^trig_\w+$/.test(rutinaTaskAI)) throw new Error('El ID de la rutina empieza con trig_.');
     const token = $('#token-taskai').value.trim();
     const taskai = { rutinaTaskAI };
     if ($('#borrar-token').checked) taskai.tokenTaskAI = '';
     else if (token) taskai.tokenTaskAI = token;
     const conToken = taskai.tokenTaskAI ?? (await config()).tokenTaskAI;
-    if (conToken && !rutinaTaskAI) throw new Error('Con token hace falta el ID de la tarea (trig_…).');
+    if (conToken && !rutinaTaskAI) throw new Error('Con token hace falta el ID de la rutina (trig_…).');
     const duenoRepos = $('#dueno').value.trim().replace(/^@/, '');
     if (duenoRepos && !/^[\w.-]+$/.test(duenoRepos)) throw new Error('El dueño de GitHub es solo el usuario u organización, sin liga (por ejemplo: mi-empresa).');
     await guardarConfig({ llave, correo, avisarNuevos: $('#avisar').checked, horaResumen: $('#hora').value || '09:00', equipos: $('#equipos').value.trim(), agente: $('#agente').value, duenoRepos, ...taskai });

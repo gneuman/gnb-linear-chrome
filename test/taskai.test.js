@@ -149,5 +149,5 @@ test('listoParaClaude: "Done when" también cuenta', () => {
 
 test('dispararTaskAI: sin ID de tarea no llama a nadie', async () => {
   const pedir = async () => { throw new Error('no debió llamar'); };
-  await assert.rejects(dispararTaskAI({ token: 't', issueId: 'INT-7', pedir }), /ID de la tarea/);
+  await assert.rejects(dispararTaskAI({ token: 't', issueId: 'INT-7', pedir }), /ID de la rutina/);
 });

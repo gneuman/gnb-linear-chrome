@@ -220,7 +220,7 @@ function modal({ titulo, texto = '', cuerpo = null, botones = [], tono = '' }) {
 }
 
 /**
- * Manda el issue a TaskAI (la tarea de Claude que hace el issue y deja el PR a revisión).
+ * Manda el issue a TaskAI (la rutina de Claude que hace el issue y deja el PR a revisión).
  * Sale en todas las tarjetas. Todo pasa en un modal: si al issue le falta algo, lo dice
  * y deja arreglar ahí mismo lo que se puede (🤖 y color); si está listo, pregunta,
  * enseña "Lanzando…" y deja el resultado: ✅ Lanzado o ❌ No se lanzó.
@@ -270,7 +270,7 @@ async function abrirTaskAI(issue, m = null) {
   }
 
   if (!c.tokenTaskAI) {
-    return mostrar({ tono: 'mal', titulo: '❌ No se lanzó', texto: 'Falta el token de tu tarea. Genéralo en claude.ai/code/routines → tu tarea → disparo por API, y pégalo en Ajustes.',
+    return mostrar({ tono: 'mal', titulo: '❌ No se lanzó', texto: 'Falta el token de tu rutina. Genéralo en claude.ai/code/routines → tu rutina → disparo por API, y pégalo en Ajustes.',
       botones: [{ texto: 'Abrir Ajustes', primario: true, onclick: () => chrome.runtime.openOptionsPage() }, { texto: 'Cerrar' }] });
   }
   // Cada disparo abre una sesión nueva de Claude: dos clics = dos PRs.
@@ -293,13 +293,14 @@ async function abrirTaskAI(issue, m = null) {
     tono: repetido ? 'ojo' : '',
     titulo: repetido ? `${issue.identifier} ya se mandó hace poco` : `¿Mandar ${issue.identifier} a Claude?`,
     texto: repetido ? 'Se mandó hace menos de 30 min. Si lo mandas otra vez se abre otra sesión y saldría otro PR.' : `${issue.title}. Claude lo hace y te deja el PR a revisión, sin fusionar.`,
-    // La extensión no ve el entorno de la tarea: no sabe si el repo está conectado, solo lo avisa.
-    cuerpo: el('p', { class: 'repo' }, '📦 Repo: ', el('b', {}, repo), el('br'), 'Revisa que tu tarea lo tenga conectado (la extensión no lo puede ver). Si no, Claude comenta "falta agregar" en el issue y no lo hace.'),
-    botones: [{ texto: repetido ? 'Mandar otra vez' : 'Mandar', primario: true, onclick: lanzar }, { texto: 'Abrir mi tarea', href: TAREAS }, { texto: 'Cancelar' }],
+    // La extensión no ve el entorno de la rutina: no sabe si el repo está conectado, solo lo avisa.
+    cuerpo: el('p', { class: 'repo' }, '📦 Repo: ', el('b', {}, repo), el('br'), 'Revisa que tu rutina lo tenga conectado (la extensión no lo puede ver). Si no, Claude comenta "falta agregar" en el issue y no lo hace.'),
+    botones: [{ texto: repetido ? 'Mandar otra vez' : 'Mandar', primario: true, onclick: lanzar }, { texto: 'Abrir mi rutina', href: urlRutina(c.rutinaTaskAI) }, { texto: 'Cancelar' }],
   });
 }
 
-const TAREAS = 'https://claude.ai/code/routines';
+/** La página de la rutina en claude.ai, para revisar o agregarle repos. */
+const urlRutina = (id) => `https://claude.ai/code/routines/${id || ''}`;
 
 const AYUDA = {
   [LABEL.agente]: `La etiqueta ${LABEL.agente}`,
