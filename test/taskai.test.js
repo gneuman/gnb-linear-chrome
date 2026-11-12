@@ -119,3 +119,17 @@ test('seguimiento: trabajando, resultado o sin respuesta', () => {
   const listo = { comments: { nodes: [{ body: 'TaskAI · ✅ PR listo\n👉 Te toca: Revisa y fusiona\n🔗 https://github.com/a/b/pull/1', createdAt: '2026-11-12T15:20:00Z' }] } };
   assert.equal(seguimiento(listo, enviado).teToca, 'Revisa y fusiona');
 });
+
+import { prsDe } from '../lib/taskai.js';
+
+test('prsDe: los PR ligados en Linear, con estado si viene', () => {
+  const issue = { attachments: { nodes: [
+    { url: 'https://github.com/gneuman/gnb-meta/pull/118', title: 'actualizar: organigrama', metadata: { status: 'merged' } },
+    { url: 'https://github.com/gneuman/x/pull/3' },
+    { url: 'https://figma.com/a' },
+  ] } };
+  assert.deepEqual(prsDe(issue), [
+    { repo: 'gneuman/gnb-meta', numero: 118, url: 'https://github.com/gneuman/gnb-meta/pull/118', titulo: 'actualizar: organigrama', estado: 'fusionado' },
+    { repo: 'gneuman/x', numero: 3, url: 'https://github.com/gneuman/x/pull/3', titulo: '', estado: null },
+  ]);
+});

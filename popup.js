@@ -2,7 +2,7 @@ import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
 import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, TOPE } from './lib/linear.js';
-import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento } from './lib/taskai.js';
+import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento, prsDe } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -103,6 +103,7 @@ function tarjetaTuya(issue, grande = false) {
     el('div', { class: 'meta' }, meta(issue)),
     grande && texto ? el('div', { class: 'meta' }, texto) : null,
     listoCuando ? el('div', { class: 'listo' }, el('b', {}, 'Listo cuando: '), listoCuando) : null,
+    lineaPRs(issue),
     el('div', { class: 'acciones' },
       enCurso
         ? el('button', { onclick: () => chrome.tabs.create({ url: issue.url }) }, 'Abrir')
@@ -172,6 +173,7 @@ function tarjetaAgente(issue) {
   return el('div', { class: 'item' },
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)} · ${nota}`),
+    lineaPRs(issue),
     // Los que ya tienen 🤖 pero nadie los trabaja: un clic para que el agente los tome.
     el('div', { class: 'acciones' },
       botonTaskAI(issue),
@@ -365,11 +367,42 @@ function botonEditar(issue) {
   }, 'Editar');
 }
 
+/**
+ * Los PR que Linear ya tiene ligados al issue, con liga directa. Si alguno ya se
+ * fusionó y el issue sigue abierto, lo dice y ofrece pasarlo a Done: no hace
+ * falta mandarlo a Claude para descubrir que ya está hecho.
+ */
+function lineaPRs(issue) {
+  const prs = prsDe(issue);
+  if (!prs.length) return null;
+  const fusionado = prs.some((p) => p.estado === 'fusionado');
+  return el('div', { class: `prs ${fusionado ? 'fusionado' : ''}` },
+    '🔀 ',
+    ...prs.flatMap((p, i) => [i ? ' · ' : '', el('a', { href: p.url, target: '_blank', title: p.titulo }, `PR #${p.numero}`), p.estado ? ` ${p.estado}` : '']),
+    fusionado ? el('span', {}, ' — ya está hecho. ', el('button', { onclick: () => confirmarDone(issue) }, 'Pasar a Done')) : null);
+}
+
+function confirmarDone(issue, despues = pintar) {
+  const m = modal({ titulo: `¿Pasar ${issue.identifier} a Done?`, texto: issue.title, botones: [{ texto: 'Pasar a Done', primario: true, onclick: async () => {
+    m.cambiar({ titulo: `Cerrando ${issue.identifier}…` });
+    try {
+      const c = await config();
+      await terminar(c.llave, issue);
+      m.cambiar({ tono: 'bien', titulo: `✅ ${issue.identifier} en Done`, botones: [{ texto: 'Listo' }] });
+      await chrome.runtime.sendMessage({ tipo: 'refrescar' });
+      await despues();
+    } catch (err) {
+      m.cambiar({ tono: 'mal', titulo: '❌ No se cerró', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+    }
+  } }, { texto: 'Cancelar' }] });
+}
+
 function tarjetaAtorada(issue) {
   const dias = issue.dias == null ? '' : ` · ${issue.dias} d sin moverse`;
   return el('div', { class: 'item' },
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)}${dias}`),
+    lineaPRs(issue),
     el('div', { class: 'acciones' }, botonTaskAI(issue), botonCopiar(issue), botonDelegar(issue), botonEditar(issue), botonRecordar(issue)));
 }
 
@@ -548,21 +581,7 @@ function tarjetaTaskAI({ issue, s }) {
     el('div', { class: 'acciones' },
       pr ? el('a', { class: 'boton primario', href: pr, target: '_blank' }, 'Ver PR') : null,
       el('a', { class: 'boton', href: issue.url, target: '_blank' }, 'Abrir issue'),
-      el('button', {
-        onclick: () => {
-          const m = modal({ titulo: `¿Pasar ${issue.identifier} a Done?`, texto: issue.title, botones: [{ texto: 'Pasar a Done', primario: true, onclick: async () => {
-            m.cambiar({ titulo: `Cerrando ${issue.identifier}…` });
-            try {
-              const c = await config();
-              await terminar(c.llave, issue);
-              m.cambiar({ tono: 'bien', titulo: `✅ ${issue.identifier} en Done`, botones: [{ texto: 'Listo' }] });
-              await pintarTaskAI();
-            } catch (err) {
-              m.cambiar({ tono: 'mal', titulo: '❌ No se cerró', texto: err.message, botones: [{ texto: 'Cerrar' }] });
-            }
-          } }, { texto: 'Cancelar' }] });
-        },
-      }, 'Pasar a Done')));
+      el('button', { onclick: () => confirmarDone(issue, pintarTaskAI) }, 'Pasar a Done')));
 }
 
 const REPETIR = { no: '', diario: ' · diario', laborables: ' · L a V' };
