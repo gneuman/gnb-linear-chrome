@@ -574,7 +574,10 @@ async function pintarAhora() {
 
 // ---------- Traer un issue cualquiera ----------
 // Pegas "CID-683" o su liga y queda fijo arriba con todos los botones (Mandar a
-// Claude, Editar, Comentar…), aunque no sea tuyo. Se quedan hasta que les das ✕.
+// Claude, Editar, Comentar…), aunque no sea tuyo. Se quedan hasta que les das ✕
+// o hasta que pasan a Done o Canceled.
+
+const cerrado = (i) => ['completed', 'canceled'].includes(i.state?.type);
 
 const MAX_TRAIDOS = 5;
 
@@ -601,10 +604,14 @@ async function seccionTraidos(persona) {
 
   const ids = await traidos();
   if (ids.length) {
-    caja.append(el('h2', {}, '📌 Traídos'));
     const c = await config();
     // Se piden en paralelo; uno que falle no tumba a los demás.
-    const issues = await Promise.all(ids.map((id) => traerIssue(c.llave, id).catch((err) => ({ error: err.message, identifier: id }))));
+    const todos = await Promise.all(ids.map((id) => traerIssue(c.llave, id).catch((err) => ({ error: err.message, identifier: id }))));
+    // Los que ya se cerraron (Done o Canceled) se quitan solos de la lista.
+    const cerrados = todos.filter(cerrado).map((i) => i.identifier);
+    if (cerrados.length) await guardarTraidos(ids.filter((id) => !cerrados.includes(id)));
+    const issues = todos.filter((i) => !cerrado(i));
+    if (issues.length) caja.append(el('h2', {}, '📌 Traídos'));
     for (const i of issues) caja.append(tarjetaTraida(i, persona));
   }
   return el('div', {}, form, caja);
