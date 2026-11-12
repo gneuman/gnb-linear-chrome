@@ -66,6 +66,7 @@ button:disabled { cursor: default; opacity: .55; }
 .modal h3 { margin: 0 0 6px; font-size: 15px; }
 .modal p { margin: 0 0 8px; color: var(--suave); overflow-wrap: anywhere; }
 .modal-select { width: 100%; border: 1px solid var(--linea); background: var(--bg); border-radius: 6px; padding: 5px 6px; margin-bottom: 4px; }
+.modal-texto { width: 100%; box-sizing: border-box; border: 1px solid var(--linea); background: var(--bg); color: inherit; border-radius: 6px; padding: 6px; font: inherit; resize: vertical; margin-bottom: 4px; }
 a.boton { display: inline-block; text-decoration: none; border: 1px solid var(--linea); background: var(--tarjeta); border-radius: 6px; padding: 4px 8px; color: inherit; }
 a.boton.primario { background: var(--acento); border-color: var(--acento); color: #fff; }
 .modal ul.falta { margin: 0 0 8px; padding-left: 18px; }

@@ -21,6 +21,7 @@ Lee los labels que ya existen en el workspace (máquina de estados de
 | **Mandar a Claude** | Dispara la tarea **TaskAI** (claude.ai/code/routines): Claude hace el issue y te deja el PR en Internal Review, sin fusionar. Sale en todas las tarjetas. Si al issue le falta algo (🤖, riesgo verde o amarillo, un repo ligado en Linear o un único `gneuman/<repo>` en la descripción, y "Listo cuando"), el modal dice qué y deja ponerle 🤖 y color ahí mismo. Pregunta antes en un modal y ahí mismo dice ✅ Lanzado (con la liga de la sesión) o ❌ No se lanzó (con el porqué) |
 | **Pestaña TaskAI** | Lo que mandaste a Claude y lo que TaskAI comentó en Linear (14 días): arriba lo que te toca (👉), con **Ver PR**, **Abrir issue** y **Pasar a Done** |
 | **Delegar a…** | En cada tarjeta: asígnalo a otra persona del equipo, con aviso de que quedó |
+| **💬 Comentar** | En cada tarjeta: escribe y queda como comentario en Linear sin abrir el issue (Ctrl+Enter lo manda) |
 | **Editar** | En cada tarjeta: estado, talla y persona, directo en Linear |
 | **Copiar issue** | En cada tarjeta. Copia ese issue listo para pegar en una sesión de Claude: link, repo de GitHub (del issue o del link "Repo" del proyecto en Linear), rama exacta de Linear, estado, prioridad, talla, riesgo, descripción completa y cómo arrancar (worktree) |
 | **Tamaño y prioridad** | Cada issue enseña su prioridad (Urgente en rojo, Alta en naranja) y su talla (XS–XL) |
