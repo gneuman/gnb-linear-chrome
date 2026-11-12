@@ -79,7 +79,7 @@ Mostrar los issues de Linear asignados a la persona, ordenados por lo que sigue,
 
 Marca las tres certificaciones: no se venden datos a terceros, no se usan para nada fuera del propósito único y no se usan para dar crédito ni préstamos.
 
-**URL de la política de privacidad:** la página pública donde quede `tienda/privacidad.html` (ver el paso 3 de [README.md](README.md)).
+**URL de la política de privacidad:** `https://gabrielneuman.com/extension/privacidad/`
 
 ## Pestaña "Distribución" (Distribution)
 

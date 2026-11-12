@@ -36,10 +36,11 @@ con datos de ejemplo. Vuelve a correrlo si cambia cómo se ve el popup.
 
 ## 3. Política de privacidad
 
-La tienda pide una **URL pública** con la política. Dos caminos, el que salga primero:
+La tienda pide una **URL pública** con la política. Ya existe en tu sitio:
 
-- **Con el repo público:** `https://github.com/gneuman/gnb-linear-chrome/blob/main/tienda/PRIVACIDAD.md`. Sirve tal cual.
-- **En tu sitio:** Marketing publica [privacidad.html](privacidad.html) en gabrielneuman.com junto con la landing (CID-683).
+`https://gabrielneuman.com/extension/privacidad/`
+
+Su texto se actualizó con el token de Claude en el PR 215 de gnb-website. Si cambia lo que guarda la extensión, se cambian juntos esa página y [privacidad.html](privacidad.html).
 
 Esa URL va en **Prácticas de privacidad**.
 

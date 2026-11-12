@@ -293,10 +293,13 @@ async function abrirTaskAI(issue, m = null) {
     tono: repetido ? 'ojo' : '',
     titulo: repetido ? `${issue.identifier} ya se mandó hace poco` : `¿Mandar ${issue.identifier} a Claude?`,
     texto: repetido ? 'Se mandó hace menos de 30 min. Si lo mandas otra vez se abre otra sesión y saldría otro PR.' : `${issue.title}. Claude lo hace y te deja el PR a revisión, sin fusionar.`,
-    cuerpo: el('p', { class: 'repo' }, '📦 Repo: ', el('b', {}, repo), el('br'), 'TaskAI tiene que tenerlo conectado en claude.ai/code/routines. Si no, comenta "falta agregar" en el issue y no lo hace.'),
-    botones: [{ texto: repetido ? 'Mandar otra vez' : 'Mandar', primario: true, onclick: lanzar }, { texto: 'Cancelar' }],
+    // La extensión no ve el entorno de la tarea: no sabe si el repo está conectado, solo lo avisa.
+    cuerpo: el('p', { class: 'repo' }, '📦 Repo: ', el('b', {}, repo), el('br'), 'Revisa que tu tarea lo tenga conectado (la extensión no lo puede ver). Si no, Claude comenta "falta agregar" en el issue y no lo hace.'),
+    botones: [{ texto: repetido ? 'Mandar otra vez' : 'Mandar', primario: true, onclick: lanzar }, { texto: 'Abrir mi tarea', href: TAREAS }, { texto: 'Cancelar' }],
   });
 }
+
+const TAREAS = 'https://claude.ai/code/routines';
 
 const AYUDA = {
   [LABEL.agente]: `La etiqueta ${LABEL.agente}`,
