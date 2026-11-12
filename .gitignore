@@ -4,3 +4,4 @@ node_modules/
 !icons/*.png
 !tienda/imagenes/*.png
 dist/
+!tienda/zip/*.zip
