@@ -18,6 +18,8 @@ Lee los labels que ya existen en el workspace (máquina de estados de
 | **No es para hoy** | Plegado, solo el número: *Esperando a otros* (Review o Block), *Después* (👤 en Backlog) y *Sin triage* (sin label o 🔍: se resuelve con `/triage-dia`) |
 | **Mover a agente** | Pone `🤖 listo-para-agente`, quita el 👤, lo regresa a Todo si estaba en curso y **se lo delega al agente de Ajustes** (Linear por omisión) para que lo haga. Si no tiene riesgo, te pide el color ahí mismo |
 | **Delegar al agente** | En *Para agente*, los que tienen 🤖 pero nadie trabaja. Un clic y el agente lo toma. Los delegados dicen "🤖 Linear lo trabaja" |
+| **Mandar a Claude** | Dispara la tarea **TaskAI** (claude.ai/code/routines): Claude hace el issue y te deja el PR en Internal Review, sin fusionar. Sale prendido solo si el issue tiene 🤖, riesgo verde o amarillo, un repo (ligado en Linear o un único `gneuman/<repo>` en la descripción) y "Listo cuando"; si no, dice qué falta. Enseña la liga de la sesión |
+| **Editar** | En cada tarjeta: estado, talla y persona, directo en Linear |
 | **Copiar issue** | En cada tarjeta. Copia ese issue listo para pegar en una sesión de Claude: link, repo de GitHub (del issue o del link "Repo" del proyecto en Linear), rama exacta de Linear, estado, prioridad, talla, riesgo, descripción completa y cómo arrancar (worktree) |
 | **Tamaño y prioridad** | Cada issue enseña su prioridad (Urgente en rojo, Alta en naranja) y su talla (XS–XL) |
 | **Recordatorios** | Escribe arriba `10am revisar propuesta`, `a las 16:30 llamar`, `en 30 min mandar correo`. Una vez, diario o L a V. El ⏰ de cada issue lo prellena |
@@ -49,6 +51,10 @@ La llave se guarda solo en `chrome.storage.local` de ese Chrome. No va en el
 código ni pasa por ningún servidor.
 
 ## Límites que conviene saber
+
+- **Mandar a Claude necesita el token de TaskAI** en Ajustes. Se genera en
+  claude.ai/code/routines, en la tarea, con el disparo por API. Se guarda solo
+  en ese Chrome y no se vuelve a enseñar. El ID de la tarea viene puesto.
 
 - **Para que el agente programe con Claude**, en Linear: Settings → AI & agents →
   Cloud coding agent → Enabled, y el modelo en Claude. Sin eso, delegar solo
@@ -102,3 +108,4 @@ de Chrome y tiene pruebas en `test/`. Sin build ni dependencias.
 | `lib/consultas.js` | La regla de cada grupo como filtro de GraphQL (Copiar para Claude) |
 | `lib/schedule.js` | Próxima hora y parser de "10am …" |
 | `lib/linear.js` | GraphQL de Linear |
+| `lib/taskai.js` | Regla "listo para Claude" y disparo a TaskAI |

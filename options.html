@@ -37,6 +37,14 @@
     </select>
     <small>"Mover a agente" le delega el issue. Para que lo programe Claude: en Linear, Settings → AI &amp; agents → Cloud coding agent → modelo Claude.</small>
 
+    <label for="token-taskai">Token de TaskAI</label>
+    <input id="token-taskai" type="password" autocomplete="off" placeholder="sk-ant-…">
+    <small id="token-ayuda">"Mandar a Claude" dispara la tarea TaskAI, que hace el issue y te deja el PR a revisión. El token se genera en claude.ai/code/routines (la tarea → disparo por API). Se guarda solo en este Chrome y no se vuelve a enseñar: vacío = se queda el que ya estaba.</small>
+    <label><input id="borrar-token" type="checkbox" style="width:auto"> Borrar el token guardado</label>
+
+    <label for="rutina-taskai">ID de la tarea</label>
+    <input id="rutina-taskai" type="text" autocomplete="off" placeholder="trig_…">
+
     <p><button class="primario" type="submit">Guardar</button> <span id="estado" class="aviso ok"></span></p>
   </form>
   <script type="module" src="options.js"></script>

@@ -1,7 +1,8 @@
-import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO } from './lib/estado.js';
+import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
-import { empezar, moverAAgente, TOPE } from './lib/linear.js';
+import { empezar, moverAAgente, actualizar, opcionesDelTeam, TOPE } from './lib/linear.js';
+import { listoParaClaude, dispararTaskAI, mandadoHacePoco } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -115,6 +116,9 @@ function tarjetaTuya(issue, grande = false) {
           }, 'Empezar'),
       botonCopiar(issue),
       botonAgente(issue),
+      // En tus tarjetas solo sale si ya está listo; en "Para agente" sale siempre y dice qué falta.
+      listoParaClaude(issue).listo ? botonTaskAI(issue) : null,
+      botonEditar(issue),
       botonRecordar(issue)));
 }
 
@@ -166,8 +170,85 @@ function tarjetaAgente(issue) {
     el('div', { class: 'meta' }, `${meta(issue)} · ${nota}`),
     // Los que ya tienen 🤖 pero nadie los trabaja: un clic para que el agente los tome.
     el('div', { class: 'acciones' },
+      botonTaskAI(issue),
       botonCopiar(issue),
-      issue.delegate || !ajustes.agente ? null : botonAgente(issue, `Delegar a ${ajustes.agente}`)));
+      issue.delegate || !ajustes.agente ? null : botonAgente(issue, `Delegar a ${ajustes.agente}`),
+      botonEditar(issue)));
+}
+
+/**
+ * Manda el issue a TaskAI (la tarea de Claude que hace el issue y deja el PR a revisión).
+ * Apagado si no cumple lo que la tarea pide: dice qué falta en vez de dispararla en balde.
+ */
+function botonTaskAI(issue) {
+  const { listo, falta } = listoParaClaude(issue);
+  return el('button', {
+    class: listo ? 'primario' : '',
+    disabled: listo ? false : 'disabled',
+    title: listo ? 'Claude lo hace y te deja el PR a revisión, sin fusionar' : `Falta: ${falta.join(', ')}`,
+    onclick: async (e) => {
+      const boton = e.currentTarget;
+      if (boton.disabled) return;
+      // Cada disparo abre una sesión nueva de Claude: dos clics = dos PRs.
+      const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
+      const pregunta = mandadoHacePoco(enviadosTaskAI, issue.identifier)
+        ? `${issue.identifier} ya se mandó a Claude hace menos de 30 min. ¿Mandarlo otra vez? Se abriría otra sesión.`
+        : `¿Mandar ${issue.identifier} a Claude? Lo hace y te deja el PR a revisión.`;
+      if (!confirm(pregunta)) return;
+      boton.disabled = true;
+      try {
+        const c = await config();
+        avisar(`Mandando ${issue.identifier} a TaskAI…`, true);
+        const r = await dispararTaskAI({ token: c.tokenTaskAI, rutina: c.rutinaTaskAI, issueId: issue.identifier });
+        await chrome.storage.local.set({ enviadosTaskAI: { ...enviadosTaskAI, [issue.identifier]: Date.now() } });
+        avisar(`${issue.identifier} → TaskAI (${r.status}). Te deja el PR a revisión.`, true);
+        if (r.url) $('#aviso').append(' ', el('a', { href: r.url, target: '_blank' }, 'Ver sesión'));
+      } catch (err) {
+        avisar(err.message);
+        boton.disabled = false;
+      }
+    },
+  }, listo ? 'Mandar a Claude' : `Claude: falta ${falta[0]}`);
+}
+
+// Estados y personas por team: se piden una vez por popup abierto.
+const opciones = new Map();
+function opcionesDe(llave, teamId) {
+  if (!opciones.has(teamId)) opciones.set(teamId, opcionesDelTeam(llave, teamId).catch((e) => { opciones.delete(teamId); throw e; }));
+  return opciones.get(teamId);
+}
+
+/** Abre debajo de la tarjeta los selectores de estado, talla y persona; cada cambio va directo a Linear. */
+function botonEditar(issue) {
+  return el('button', {
+    title: 'Cambiar estado, talla o persona en Linear',
+    onclick: async (e) => {
+      const fila = e.currentTarget.closest('.acciones');
+      const abierta = fila.nextElementSibling;
+      if (abierta?.classList.contains('editar')) return abierta.remove();
+      const caja = el('div', { class: 'acciones editar' }, el('span', { class: 'meta' }, 'Cargando…'));
+      fila.after(caja);
+      try {
+        const c = await config();
+        const { estados, personas } = await opcionesDe(c.llave, issue.team.id);
+        const cambiar = (input, texto) => accion(() => actualizar(c.llave, issue.id, input), `${issue.identifier} → ${texto}`);
+        const opcion = (value, texto, actual) => el('option', { value, selected: actual ? 'selected' : false }, texto);
+        caja.replaceChildren(
+          el('select', { title: 'Estado', onchange: (ev) => cambiar({ stateId: ev.target.value }, ev.target.selectedOptions[0].text) },
+            ...estados.map((s) => opcion(s.id, s.name, s.id === issue.state?.id))),
+          el('select', { title: 'Talla', onchange: (ev) => cambiar({ estimate: ev.target.value ? Number(ev.target.value) : null }, `talla ${ev.target.selectedOptions[0].text}`) },
+            opcion('', 'Sin talla', issue.estimate == null),
+            // Una talla fuera de la lista (13, 21) se enseña tal cual, no como "Sin talla".
+            issue.estimate != null && !OPCIONES_TALLA.some(([v]) => v === issue.estimate) ? opcion(String(issue.estimate), talla(issue), true) : null,
+            ...OPCIONES_TALLA.map(([v, t]) => opcion(String(v), t, issue.estimate === v))),
+          el('select', { title: 'Persona', onchange: (ev) => cambiar({ assigneeId: ev.target.value || null }, ev.target.selectedOptions[0].text) },
+            opcion('', 'Sin asignar', !issue.assignee),
+            ...personas.map((p) => opcion(p.id, p.name, p.id === issue.assignee?.id))));
+      } catch (err) {
+        caja.replaceChildren(el('span', { class: 'aviso' }, err.message));
+      }
+    },
+  }, 'Editar');
 }
 
 function tarjetaAtorada(issue) {
@@ -175,7 +256,7 @@ function tarjetaAtorada(issue) {
   return el('div', { class: 'item' },
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)}${dias}`),
-    el('div', { class: 'acciones' }, botonCopiar(issue), botonRecordar(issue)));
+    el('div', { class: 'acciones' }, botonCopiar(issue), botonEditar(issue), botonRecordar(issue)));
 }
 
 /** Notas por issue que le sirven a Claude: riesgo, "Listo cuando" y días sin moverse. */
