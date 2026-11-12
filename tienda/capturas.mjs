@@ -24,8 +24,8 @@ const servidor = createServer(async (req, res) => {
 const base = `http://localhost:${servidor.address().port}`;
 
 const L = {
-  humano: '0a6fcfa4-df6a-4cd4-9417-bd1e8b84c7d7', agente: 'b5565186-c19c-4577-bded-163b86494dac',
-  info: '2ed1cb66-314b-479e-9355-bfe9c37a67c8', brief: '3ba72dd9-908a-4652-a38d-1df5e6afadd8',
+  humano: '👤 listo-para-humano', agente: '🤖 listo-para-agente',
+  info: '❓ necesita-info', brief: '📦 brief-incluido',
 };
 const hace = (d) => new Date(Date.now() - d * 864e5).toISOString();
 let n = 100;
@@ -33,7 +33,7 @@ const issue = (titulo, o = {}) => ({
   id: `demo-${n}`, identifier: `OP-${n++}`, title: titulo, url: 'https://linear.app/',
   team: { key: 'OP' }, priority: o.p ?? 3, dueDate: o.vence ?? null, updatedAt: hace(o.dias ?? 0),
   state: { name: o.estado ?? 'Todo', type: o.tipo ?? 'unstarted' }, description: o.desc ?? '',
-  labels: { nodes: (o.labels ?? []).map((id) => ({ id, name: 'x' })).concat(o.riesgo ? [{ id: 'r', name: `riesgo-${o.riesgo}` }] : []) },
+  labels: { nodes: (o.labels ?? []).map((name) => ({ id: name, name })).concat(o.riesgo ? [{ id: 'r', name: o.riesgo, parent: { name: 'riesgo' } }] : []) },
 });
 
 const issues = [

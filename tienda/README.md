@@ -1,8 +1,8 @@
 # Publicar en la Chrome Web Store
 
-Va como **Oculta (Unlisted)**: no sale en búsquedas y la instala quien tenga la
-liga. Es la opción sin Google Workspace (2026-11-05). Si un día hay Workspace,
-se puede cambiar a **Privada** para que solo la vea el dominio.
+Va **Pública** (2026-11-12): gratis, de código abierto y con liga a gabrielneuman.com.
+Si quieres probarla antes con el equipo, súbela como **Oculta** y luego cámbiala
+a Pública desde Distribución, sin volver a subir el paquete.
 
 Publicar lo hace Gabriel: la cuenta, el pago y el botón de enviar son suyos.
 
@@ -27,7 +27,7 @@ con datos de ejemplo. Vuelve a correrlo si cambia cómo se ve el popup.
 1. Entra a <https://chrome.google.com/webstore/devconsole> con la cuenta de Google que será dueña.
 2. Acepta el acuerdo y paga los **5 USD** (un solo pago).
 3. En **Cuenta**, pon un correo de contacto y verifícalo.
-4. Cuando pregunte si eres comerciante (trader), contesta **No**: la extensión es gratis y de uso interno.
+4. Cuando pregunte si eres comerciante (trader): si la extensión es gratis y la donación es voluntaria, normalmente es **No**. Si contestas **Sí**, Google enseña tu dirección y teléfono en la ficha. Decídelo tú.
 
 ## 2. Subir el paquete
 
@@ -36,10 +36,12 @@ con datos de ejemplo. Vuelve a correrlo si cambia cómo se ve el popup.
 
 ## 3. Política de privacidad
 
-La tienda pide una **URL pública**, y este repo es privado. Hay que publicar
-[privacidad.html](privacidad.html) en un lugar abierto, por ejemplo
-`gabrielneuman.com/extension/privacidad/`, y antes cambiar `CORREO_DE_SOPORTE`
-por el correo de contacto. Esa URL va en **Prácticas de privacidad**.
+La tienda pide una **URL pública** con la política. Dos caminos, el que salga primero:
+
+- **Con el repo público:** `https://github.com/gneuman/gnb-linear-chrome/blob/main/tienda/PRIVACIDAD.md`. Sirve tal cual.
+- **En tu sitio:** Marketing publica [privacidad.html](privacidad.html) en gabrielneuman.com junto con la landing (CID-683).
+
+Esa URL va en **Prácticas de privacidad**.
 
 ## 4. Enviar a revisión
 
