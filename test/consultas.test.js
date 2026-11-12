@@ -16,9 +16,9 @@ function cumple(filtro, issue) {
     if (campo === 'delegate') return cond.null ? !issue.delegate : !!issue.delegate;
     if (campo === 'state') return Object.entries(cond).every(([k, c]) => comparar(c, issue.state?.[k]));
     if (campo === 'labels') {
-      const ids = (issue.labels?.nodes || []).map((l) => l.id);
-      if (cond.some) return ids.some((id) => comparar(cond.some.id, id));
-      if (cond.every) return ids.every((id) => comparar(cond.every.id, id));
+      const nombres = (issue.labels?.nodes || []).map((l) => l.name);
+      if (cond.some) return nombres.some((n) => comparar(cond.some.name, n));
+      if (cond.every) return nombres.every((n) => comparar(cond.every.name, n));
     }
     throw new Error(`Campo sin evaluar en la prueba: ${campo}`);
   });
@@ -32,6 +32,8 @@ function comparar(c, v) {
       case 'neq': return v !== x;
       case 'in': return x.includes(v);
       case 'nin': return !x.includes(v);
+      case 'eqIgnoreCase': return s === x.toLowerCase();
+      case 'neqIgnoreCase': return s !== x.toLowerCase();
       case 'containsIgnoreCase': return s.includes(x.toLowerCase());
       case 'notContainsIgnoreCase': return !s.includes(x.toLowerCase());
       default: throw new Error(`Operador sin evaluar en la prueba: ${op}`);
@@ -40,7 +42,7 @@ function comparar(c, v) {
 }
 
 const P = 'persona-1';
-const lab = (id) => ({ id, name: id });
+const lab = (name) => ({ id: `id-${name}`, name });
 let n = 0;
 const issue = (extra = {}) => ({
   id: `X-${++n}`, identifier: `X-${n}`, title: 't', priority: 0, assignee: { id: P },

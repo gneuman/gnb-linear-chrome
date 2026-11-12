@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "¿Qué sigue?",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Tus issues de Linear y tus recordatorios: qué sigue, qué va a un agente y qué está atorado.",
   "permissions": ["storage", "alarms", "notifications", "identity", "identity.email", "unlimitedStorage"],
   "host_permissions": ["https://api.linear.app/*", "https://api.anthropic.com/*"],

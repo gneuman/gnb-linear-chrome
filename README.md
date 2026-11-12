@@ -1,11 +1,28 @@
-# gnb-linear-chrome · ¿Qué sigue?
+# ¿Qué sigue? · Linear en una pestaña de Chrome
 
 Extensión de Chrome para operar el día desde Linear sin abrir Linear:
 qué sigue, qué se suelta a un agente, qué está atorado y tus recordatorios.
+Y con tu propia tarea de Claude, **Mandar a Claude** te deja el PR a revisión.
 
-Lee los labels que ya existen en el workspace (máquina de estados de
-`triage-dia` y semáforo de riesgo del 2026-11-02, ambos en
-[gnb-meta](https://github.com/gneuman/gnb-meta)). No crea un sistema nuevo.
+Gratis y de código abierto (MIT). Si te sirve: [❤️ Donar](https://github.com/sponsors/gneuman).
+
+> **English:** a Chrome extension that turns your Linear into a "what's next" list.
+> Change status, size and assignee, comment, delegate, and send an issue to your own
+> Claude Code routine, which opens the PR for you to review. UI in Spanish (for now).
+> Setup: install, paste a Linear personal API key, click *Preparar mi Linear*.
+
+## Cómo ordena tus issues
+
+Con etiquetas de Linear, por nombre. Si no las tienes, **Ajustes → Preparar mi
+Linear** las crea (las que ya existen no se tocan):
+
+| Etiqueta | Para qué |
+|---|---|
+| `🔍 necesita-triage` | Recién creado: alguien decide qué sigue |
+| `👤 listo-para-humano` | Listo para hacerse, pide juicio de una persona |
+| `🤖 listo-para-agente` | Spec completo: un agente lo puede hacer solo |
+| `❓ necesita-info` | Esperando una respuesta |
+| grupo `riesgo`: `verde`, `amarillo`, `rojo` | Quién fusiona: verde el agente, amarillo otro agente y una persona dice "va", rojo solo una persona |
 
 ## Qué hace
 
@@ -18,7 +35,7 @@ Lee los labels que ya existen en el workspace (máquina de estados de
 | **No es para hoy** | Plegado, solo el número: *Esperando a otros* (Review o Block), *Después* (👤 en Backlog) y *Sin triage* (sin label o 🔍: se resuelve con `/triage-dia`) |
 | **Mover a agente** | Pone `🤖 listo-para-agente`, quita el 👤, lo regresa a Todo si estaba en curso y **se lo delega al agente de Ajustes** (Linear por omisión) para que lo haga. Si no tiene riesgo, te pide el color ahí mismo |
 | **Delegar al agente** | En *Para agente*, los que tienen 🤖 pero nadie trabaja. Un clic y el agente lo toma. Los delegados dicen "🤖 Linear lo trabaja" |
-| **Mandar a Claude** | Dispara la tarea **TaskAI** (claude.ai/code/routines): Claude hace el issue y te deja el PR en Internal Review, sin fusionar. Sale en todas las tarjetas. Si al issue le falta algo (🤖, riesgo verde o amarillo, un repo ligado en Linear o un único `gneuman/<repo>` en la descripción, y "Listo cuando"), el modal dice qué y deja ponerle 🤖 y color ahí mismo. Pregunta antes en un modal y ahí mismo dice ✅ Lanzado (con la liga de la sesión) o ❌ No se lanzó (con el porqué) |
+| **Mandar a Claude** | Opcional. Dispara **tu** tarea de Claude (claude.ai/code/routines, guía en [taskai/](taskai/README.md)): Claude hace el issue y te deja el PR a revisión, sin fusionar. Sale en todas las tarjetas cuando pones el token en Ajustes. Si al issue le falta algo (🤖, riesgo verde o amarillo, un repo ligado en Linear o un único `dueño/repo` en la descripción, y "Listo cuando"), el modal dice qué y deja ponerle 🤖 y color ahí mismo. Pregunta antes en un modal y ahí mismo dice ✅ Lanzado (con la liga de la sesión) o ❌ No se lanzó (con el porqué) |
 | **Pestaña TaskAI** | Lo que mandaste a Claude y lo que TaskAI comentó en Linear (14 días): arriba lo que te toca (👉), con **Ver PR**, **Abrir issue** y **Pasar a Done** |
 | **Delegar a…** | En cada tarjeta: asígnalo a otra persona del equipo, con aviso de que quedó |
 | **💬 Comentar** | En cada tarjeta: escribe y queda como comentario en Linear sin abrir el issue (Ctrl+Enter lo manda) |
@@ -55,9 +72,12 @@ código ni pasa por ningún servidor.
 
 ## Límites que conviene saber
 
-- **Mandar a Claude necesita el token de TaskAI** en Ajustes. Se genera en
-  claude.ai/code/routines, en la tarea, con el disparo por API. Se guarda solo
-  en ese Chrome y no se vuelve a enseñar. El ID de la tarea viene puesto.
+- **Mandar a Claude necesita tu tarea**: token e ID en Ajustes. Cómo crearla:
+  [taskai/README.md](taskai/README.md). El token se guarda solo en ese Chrome
+  y no se vuelve a enseñar. Sin token, el botón y la pestaña TaskAI no salen.
+- **El repo de un issue** sale de lo ligado en Linear (PR, rama o link del
+  proyecto). Para leerlo de la descripción (`dueño/repo`), pon el dueño de
+  GitHub en Ajustes.
 
 - **Para que el agente programe con Claude**, en Linear: Settings → AI & agents →
   Cloud coding agent → Enabled, y el modelo en Claude. Sin eso, delegar solo
@@ -112,3 +132,7 @@ de Chrome y tiene pruebas en `test/`. Sin build ni dependencias.
 | `lib/schedule.js` | Próxima hora y parser de "10am …" |
 | `lib/linear.js` | GraphQL de Linear |
 | `lib/taskai.js` | Regla "listo para Claude" y disparo a TaskAI |
+
+## Licencia
+
+MIT. Ver [LICENSE](LICENSE). Hecho por [Gabriel Neuman](https://gabrielneuman.com).
