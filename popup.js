@@ -554,7 +554,8 @@ async function pintarAhora() {
     plegado('Sin triage', g.sinTriage, 'corre /triage-dia', consulta('sinTriage')),
     el('p', { class: 'meta' },
       datos.persona ? `Tareas de ${datos.persona.name} (${datos.persona.email}) · ` : '',
-      `Revisado ${new Date(datos.at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} · ${datos.issues.length} abiertos`),
+      `Revisado ${new Date(datos.at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} · ${datos.issues.length} abiertos · `,
+      el('a', { href: 'https://gabrielneuman.com', target: '_blank' }, 'gabrielneuman.com')),
     datos.issues.length >= TOPE
       ? el('p', { class: 'aviso' }, `Llegaste al tope de ${TOPE} issues: puede faltar alguno. Cierra o cancela los viejos en Linear.`)
       : null,

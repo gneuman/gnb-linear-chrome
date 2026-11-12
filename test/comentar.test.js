@@ -45,3 +45,10 @@ test('idDeIssue: lee el ID de la liga o del texto', () => {
   assert.equal(idDeIssue('hola'), null);
   assert.equal(idDeIssue('ver CID-683 mañana'), null, 'texto suelto no: solo el ID o la liga');
 });
+
+import { traerIssue } from '../lib/linear.js';
+
+test('traerIssue: un ID que no existe da un mensaje claro', async () => {
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ errors: [{ message: 'Entity not found: Issue' }] }) });
+  await assert.rejects(traerIssue('k', 'CID-863'), /No existe CID-863 en tu Linear/);
+});

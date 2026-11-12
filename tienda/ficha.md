@@ -24,13 +24,16 @@ Con un clic ves:
 • Esperan info: lo atorado, con los días que lleva sin moverse.
 • Lo que no es para hoy, plegado y contado.
 
+Desde cada tarjeta, sin abrir Linear: cambias estado, prioridad, talla y persona, comentas, delegas a alguien del equipo y lo pasas a Done cuando su PR ya se fusionó. Pega cualquier issue (su ID o su liga) y lo traes arriba con todos los botones.
+
+Mandar a Claude (opcional): con tu propia tarea de Claude Code, un clic le pasa el issue y Claude te deja el PR a revisión, sin fusionar. La pestaña TaskAI te dice qué te toca de lo que mandaste.
+
 Recordatorios escritos como hablas: "10am revisar propuesta", "a las 16:30 llamar", "en 30 min mandar correo". Una vez, diario o de lunes a viernes, con Posponer 10 min.
 
-Te avisa cuando te asignan un issue nuevo y te manda un resumen a la hora que elijas.
+Cómo se conecta: pegas tu API key personal de Linear en Ajustes. Se guarda solo en tu Chrome y la extensión habla directo con Linear. No hay servidor intermedio ni se guarda nada fuera de tu computadora. "Preparar mi Linear" crea las etiquetas que usa (👤 listo-para-humano, 🤖 listo-para-agente, ❓ necesita-info y el semáforo de riesgo).
 
-Cómo se conecta: pegas tu API key personal de Linear en Ajustes. Se guarda solo en tu Chrome y la extensión habla directo con Linear. No hay servidor intermedio ni se guarda nada fuera de tu computadora.
-
-Hecha para equipos que ordenan Linear con los labels 👤 listo-para-humano, 🤖 listo-para-agente y ❓ necesita-info. Sin esos labels, igual ves tus issues en curso y tus recordatorios.
+Gratis y de código abierto (MIT): github.com/gneuman/gnb-linear-chrome
+Hecha por Gabriel Neuman · gabrielneuman.com
 ```
 
 **Categoría:** Productividad → Flujo de trabajo y planificación (Workflow & Planning).
@@ -43,7 +46,9 @@ Hecha para equipos que ordenan Linear con los labels 👤 listo-para-humano, �
 
 **Mosaico promocional pequeño:** `dist/tienda/mosaico-440x280.png`.
 
-**Sitio web / asistencia:** déjalo vacío, o pon el correo de soporte.
+**Sitio web oficial (Official URL / Homepage):** `https://gabrielneuman.com`. Ya viene también en el `manifest.json` (`homepage_url`): Chrome la enseña en "Detalles" de la extensión. Cuando Marketing publique la landing (CID-683), cámbiala por la de la landing.
+
+**URL de asistencia (Support URL):** `https://github.com/gneuman/gnb-linear-chrome/issues` (cuando el repo sea público) o `https://gabrielneuman.com`.
 
 ## Pestaña "Prácticas de privacidad" (Privacy practices)
 
@@ -62,13 +67,15 @@ Mostrar los issues de Linear asignados a la persona, ordenados por lo que sigue,
 | `notifications` | Avisa cuando suena un recordatorio, cuando le asignan un issue nuevo a la persona y con el resumen diario. |
 | `identity` | Se necesita para leer el correo del perfil de Chrome (ver `identity.email`). No inicia sesión ni pide tokens de Google. |
 | `identity.email` | Lee el correo del perfil de Chrome para mostrar solo los issues asignados a esa persona en Linear, si no escribió otro correo en Ajustes. El correo no sale de la computadora salvo en la consulta a Linear que busca a esa persona. |
-| Acceso a `https://api.linear.app/*` | Es la API de Linear: de ahí lee los issues de la persona, y ahí escribe cuando ella pulsa "Empezar" o "Mover a agente". No se conecta a ningún otro sitio. |
+| `unlimitedStorage` | Guarda la copia local de los issues de la persona (pueden ser cientos con su descripción) para abrir el popup al instante sin pedirlos otra vez a Linear. |
+| Acceso a `https://api.linear.app/*` | Es la API de Linear: de ahí lee los issues de la persona, y ahí escribe solo cuando ella pulsa un botón (empezar, editar, comentar, delegar, pasar a Done). |
+| Acceso a `https://api.anthropic.com/*` | Opcional. Solo si la persona pega en Ajustes el token de su propia tarea de Claude: al pulsar "Mandar a Claude" se le manda a esa tarea el ID del issue. Sin token no se hace ninguna llamada. |
 
 **¿Usa código remoto?** No. Todo el código va dentro del paquete.
 
 **Uso de datos.** Marca solo estas dos:
 - **Información de identificación personal:** el correo de la persona, para buscarla en Linear.
-- **Información de autenticación:** la API key de Linear, guardada solo en ese Chrome.
+- **Información de autenticación:** la API key de Linear y, si la persona lo pone, el token de su tarea de Claude. Los dos se guardan solo en ese Chrome.
 
 Marca las tres certificaciones: no se venden datos a terceros, no se usan para nada fuera del propósito único y no se usan para dar crédito ni préstamos.
 
@@ -77,5 +84,5 @@ Marca las tres certificaciones: no se venden datos a terceros, no se usan para n
 ## Pestaña "Distribución" (Distribution)
 
 - **Pagos:** Gratis.
-- **Visibilidad:** **Oculto (Unlisted).** No sale en búsquedas; la instala quien tenga la liga.
+- **Visibilidad:** **Pública.** Sale en búsquedas de la tienda. (Si quieres probarla antes con el equipo, sube primero como Oculta y luego la cambias a Pública sin volver a subir el paquete.)
 - **Regiones:** Todas.
