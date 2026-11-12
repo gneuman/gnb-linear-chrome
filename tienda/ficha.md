@@ -69,13 +69,13 @@ Mostrar los issues de Linear asignados a la persona, ordenados por lo que sigue,
 | `identity.email` | Lee el correo del perfil de Chrome para mostrar solo los issues asignados a esa persona en Linear, si no escribió otro correo en Ajustes. El correo no sale de la computadora salvo en la consulta a Linear que busca a esa persona. |
 | `unlimitedStorage` | Guarda la copia local de los issues de la persona (pueden ser cientos con su descripción) para abrir el popup al instante sin pedirlos otra vez a Linear. |
 | Acceso a `https://api.linear.app/*` | Es la API de Linear: de ahí lee los issues de la persona, y ahí escribe solo cuando ella pulsa un botón (empezar, editar, comentar, delegar, pasar a Done). |
-| Acceso a `https://api.anthropic.com/*` | Opcional. Solo si la persona pega en Ajustes el token de su propia tarea de Claude: al pulsar "Mandar a Claude" se le manda a esa tarea el ID del issue. Sin token no se hace ninguna llamada. |
+| Acceso a `https://api.anthropic.com/*` | Opcional. Solo si la persona pega en Ajustes el token de su propia rutina de Claude: al pulsar "Mandar a Claude" se le manda a esa rutina el ID del issue. Sin token no se hace ninguna llamada. |
 
 **¿Usa código remoto?** No. Todo el código va dentro del paquete.
 
 **Uso de datos.** Marca solo estas dos:
 - **Información de identificación personal:** el correo de la persona, para buscarla en Linear.
-- **Información de autenticación:** la API key de Linear y, si la persona lo pone, el token de su tarea de Claude. Los dos se guardan solo en ese Chrome.
+- **Información de autenticación:** la API key de Linear y, si la persona lo pone, el token de su rutina de Claude. Los dos se guardan solo en ese Chrome.
 
 Marca las tres certificaciones: no se venden datos a terceros, no se usan para nada fuera del propósito único y no se usan para dar crédito ni préstamos.
 
