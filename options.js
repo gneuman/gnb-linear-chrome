@@ -10,7 +10,8 @@ config().then(async (c) => {
   $('#equipos').value = c.equipos;
   $('#correo').value = c.correo;
   $('#avisar').checked = c.avisarNuevos;
-  $('#rutina-taskai').value = c.rutinaTaskAI;
+  // El ID viejo estaba amarrado a un proyecto y daba 403 "this project is paused".
+  $('#rutina-taskai').value = c.rutinaTaskAI === 'trig_01SWHeRdh6jxZ4MdUMJuk1Bq' ? RUTINA : c.rutinaTaskAI;
   // El token no se vuelve a pintar: solo se dice si hay uno.
   $('#token-taskai').placeholder = c.tokenTaskAI ? 'Guardado · escribe uno nuevo para cambiarlo' : 'sk-ant-…';
   // El guardado se pone antes de ir a Linear: si se guarda antes de que responda, no se pierde.
