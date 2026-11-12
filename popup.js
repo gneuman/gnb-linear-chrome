@@ -2,7 +2,7 @@ import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
 import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, idsDeLabels, idDeIssue, traerIssue, TOPE } from './lib/linear.js';
-import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento, prsDe } from './lib/taskai.js';
+import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento, prsDe, hechoPorPRs } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -420,11 +420,17 @@ function botonEditar(issue) {
 function lineaPRs(issue) {
   const prs = prsDe(issue);
   if (!prs.length) return null;
-  const fusionado = prs.some((p) => p.estado === 'fusionado');
-  return el('div', { class: `prs ${fusionado ? 'fusionado' : ''}` },
+  const hecho = hechoPorPRs(prs);
+  const pendientes = prs.filter((p) => p.estado === 'abierto' || p.estado === 'borrador');
+  const algunoFusionado = prs.some((p) => p.estado === 'fusionado');
+  return el('div', { class: `prs ${hecho ? 'fusionado' : ''}` },
     '🔀 ',
     ...prs.flatMap((p, i) => [i ? ' · ' : '', el('a', { href: p.url, target: '_blank', title: p.titulo }, `PR #${p.numero}`), p.estado ? ` ${p.estado}` : '']),
-    fusionado ? el('span', {}, ' — ya está hecho. ', el('button', { onclick: () => confirmarDone(issue) }, 'Pasar a Done')) : null);
+    hecho
+      ? el('span', {}, ' — ya está hecho. ', el('button', { onclick: () => confirmarDone(issue) }, 'Pasar a Done'))
+      : algunoFusionado && pendientes.length
+        ? el('span', {}, ` — falta ${pendientes.map((p) => `#${p.numero}`).join(', ')}: revísalo o ciérralo antes de pasar a Done.`)
+        : null);
 }
 
 function confirmarDone(issue, despues = pintar) {

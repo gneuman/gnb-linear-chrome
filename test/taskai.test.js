@@ -123,7 +123,7 @@ test('seguimiento: trabajando, resultado o sin respuesta', () => {
   assert.equal(seguimiento(listo, enviado).teToca, 'Revisa y fusiona');
 });
 
-import { prsDe } from '../lib/taskai.js';
+import { prsDe, hechoPorPRs } from '../lib/taskai.js';
 
 test('prsDe: los PR ligados en Linear, con estado si viene', () => {
   const issue = { attachments: { nodes: [
@@ -150,4 +150,12 @@ test('listoParaClaude: "Done when" también cuenta', () => {
 test('dispararTaskAI: sin ID de tarea no llama a nadie', async () => {
   const pedir = async () => { throw new Error('no debió llamar'); };
   await assert.rejects(dispararTaskAI({ token: 't', issueId: 'INT-7', pedir }), /ID de la rutina/);
+});
+
+test('hechoPorPRs: solo con un PR fusionado y ninguno abierto', () => {
+  assert.equal(hechoPorPRs([{ estado: 'fusionado' }]), true);
+  assert.equal(hechoPorPRs([{ estado: 'abierto' }, { estado: 'fusionado' }]), false);
+  assert.equal(hechoPorPRs([{ estado: 'borrador' }, { estado: 'fusionado' }]), false);
+  assert.equal(hechoPorPRs([{ estado: 'fusionado' }, { estado: 'cerrado' }]), true);
+  assert.equal(hechoPorPRs([{ estado: 'abierto' }]), false);
 });
