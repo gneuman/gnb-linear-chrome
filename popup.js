@@ -1,4 +1,4 @@
-import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA } from './lib/estado.js';
+import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
 import { empezar, moverAAgente, actualizar, opcionesDelTeam, TOPE } from './lib/linear.js';
@@ -117,7 +117,7 @@ function tarjetaTuya(issue, grande = false) {
       botonCopiar(issue),
       botonAgente(issue),
       // En tus tarjetas solo sale si ya está listo; en "Para agente" sale siempre y dice qué falta.
-      listoParaClaude(issue).listo ? botonTaskAI(issue) : null,
+      botonTaskAI(issue),
       botonDelegar(issue),
       botonEditar(issue),
       botonRecordar(issue)));
@@ -207,46 +207,88 @@ function modal({ titulo, texto = '', cuerpo = null, botones = [], tono = '' }) {
 
 /**
  * Manda el issue a TaskAI (la tarea de Claude que hace el issue y deja el PR a revisión).
- * Apagado si no cumple lo que la tarea pide: dice qué falta en vez de dispararla en balde.
- * Todo el ida y vuelta va en un modal: se pregunta, se ve "Lanzando…" y queda el resultado.
+ * Sale en todas las tarjetas. Todo pasa en un modal: si al issue le falta algo, lo dice
+ * y deja arreglar ahí mismo lo que se puede (🤖 y color); si está listo, pregunta,
+ * enseña "Lanzando…" y deja el resultado: ✅ Lanzado o ❌ No se lanzó.
  */
 function botonTaskAI(issue) {
   const { listo, falta } = listoParaClaude(issue);
   return el('button', {
     class: listo ? 'primario' : '',
-    disabled: listo ? false : 'disabled',
-    title: listo ? 'Claude lo hace y te deja el PR a revisión, sin fusionar' : `Falta: ${falta.join(', ')}`,
-    onclick: async () => {
-      const c = await config();
-      if (!c.tokenTaskAI) {
-        return modal({ tono: 'mal', titulo: '❌ No se lanzó', texto: 'Falta el token de TaskAI. Genéralo en claude.ai/code/routines → TaskAI → disparo por API, y pégalo en Ajustes.',
-          botones: [{ texto: 'Abrir Ajustes', primario: true, onclick: () => chrome.runtime.openOptionsPage() }, { texto: 'Cerrar' }] });
-      }
-      // Cada disparo abre una sesión nueva de Claude: dos clics = dos PRs.
-      const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
-      const repetido = mandadoHacePoco(enviadosTaskAI, issue.identifier);
-      const m = modal({
-        tono: repetido ? 'ojo' : '',
-        titulo: repetido ? `${issue.identifier} ya se mandó hace poco` : `¿Mandar ${issue.identifier} a Claude?`,
-        texto: repetido ? 'Se mandó hace menos de 30 min. Si lo mandas otra vez se abre otra sesión y saldría otro PR.' : `${issue.title}. Claude lo hace y te deja el PR a revisión, sin fusionar.`,
-        botones: [{ texto: repetido ? 'Mandar otra vez' : 'Mandar', primario: true, onclick: () => lanzar() }, { texto: 'Cancelar' }],
-      });
-      async function lanzar() {
-        m.cambiar({ titulo: `Lanzando ${issue.identifier}…`, texto: 'Hablando con TaskAI.' });
-        try {
-          const r = await dispararTaskAI({ token: c.tokenTaskAI, rutina: c.rutinaTaskAI, issueId: issue.identifier });
-          await chrome.storage.local.set({ enviadosTaskAI: { ...enviadosTaskAI, [issue.identifier]: Date.now() } });
-          m.cambiar({ tono: 'bien', titulo: `✅ Lanzado: ${issue.identifier}`,
-            texto: `TaskAI lo recibió (${r.status}). Claude ya está trabajando; el PR llega a Internal Review y te comenta en el issue.`,
-            botones: [r.url ? { texto: 'Ver la sesión', href: r.url, primario: true } : null, { texto: 'Listo' }].filter(Boolean) });
-        } catch (err) {
-          m.cambiar({ tono: 'mal', titulo: '❌ No se lanzó', texto: err.message,
-            botones: [{ texto: 'Reintentar', primario: true, onclick: () => lanzar() }, { texto: 'Cerrar' }] });
-        }
-      }
-    },
-  }, listo ? 'Mandar a Claude' : `Claude: falta ${falta[0]}`);
+    title: listo ? 'Claude lo hace y te deja el PR a revisión, sin fusionar' : `Antes falta: ${falta.join(', ')}`,
+    onclick: () => abrirTaskAI(issue),
+  }, listo ? '🤖 Mandar a Claude' : `🤖 Mandar a Claude · falta ${falta.length}`);
 }
+
+async function abrirTaskAI(issue, m = null) {
+  const c = await config();
+  const mostrar = (o) => (m ? m.cambiar(o) : (m = modal(o)));
+  const { listo, falta } = listoParaClaude(issue);
+
+  if (!listo) {
+    const color = riesgo(issue);
+    const arreglable = falta.every((f) => f === '🤖 listo-para-agente' || f === 'riesgo');
+    const poner = (nuevo) => async () => {
+      mostrar({ titulo: `Preparando ${issue.identifier}…` });
+      try {
+        await actualizar(c.llave, issue.id, labelsParaAgente(issue, nuevo));
+        const extra = [{ id: LABEL.agente, name: '🤖 listo-para-agente' }];
+        if (nuevo && !color) extra.push({ id: RIESGO[nuevo], name: nuevo });
+        await abrirTaskAI({ ...issue, labels: { nodes: [...(issue.labels?.nodes || []), ...extra] } }, m);
+        chrome.runtime.sendMessage({ tipo: 'refrescar' }).then(pintar);
+      } catch (err) {
+        mostrar({ tono: 'mal', titulo: '❌ No pude prepararlo', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+      }
+    };
+    const lista = el('ul', { class: 'falta' }, ...falta.map((f) => el('li', {}, AYUDA[f] || f)));
+    const botones = color === 'rojo'
+      ? [{ texto: 'Abrir en Linear', href: issue.url, primario: true }, { texto: 'Cerrar' }]
+      : arreglable
+        ? (color
+          ? [{ texto: 'Ponerle 🤖 y mandarlo', primario: true, onclick: poner(null) }]
+          : [{ texto: '🤖 verde', primario: true, onclick: poner('verde') }, { texto: '🤖 amarillo', onclick: poner('amarillo') }])
+          .concat([{ texto: 'Cancelar' }])
+        : [{ texto: 'Abrir en Linear', href: issue.url, primario: true }, { texto: 'Cerrar' }];
+    return mostrar({ tono: 'ojo', titulo: `${issue.identifier} todavía no está listo para Claude`,
+      texto: arreglable && color !== 'rojo' ? 'Lo arreglas desde aquí:' : 'Esto se arregla en el issue, en Linear:', cuerpo: lista, botones });
+  }
+
+  if (!c.tokenTaskAI) {
+    return mostrar({ tono: 'mal', titulo: '❌ No se lanzó', texto: 'Falta el token de TaskAI. Genéralo en claude.ai/code/routines → TaskAI → disparo por API, y pégalo en Ajustes.',
+      botones: [{ texto: 'Abrir Ajustes', primario: true, onclick: () => chrome.runtime.openOptionsPage() }, { texto: 'Cerrar' }] });
+  }
+  // Cada disparo abre una sesión nueva de Claude: dos clics = dos PRs.
+  const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
+  const repetido = mandadoHacePoco(enviadosTaskAI, issue.identifier);
+  const lanzar = async () => {
+    mostrar({ titulo: `Lanzando ${issue.identifier}…`, texto: 'Hablando con TaskAI.' });
+    try {
+      const r = await dispararTaskAI({ token: c.tokenTaskAI, rutina: c.rutinaTaskAI, issueId: issue.identifier });
+      await chrome.storage.local.set({ enviadosTaskAI: { ...enviadosTaskAI, [issue.identifier]: Date.now() } });
+      mostrar({ tono: 'bien', titulo: `✅ Lanzado: ${issue.identifier}`,
+        texto: `TaskAI lo recibió (${r.status}). Claude ya está trabajando; el PR llega a Internal Review y te comenta en el issue.`,
+        botones: [r.url ? { texto: 'Ver la sesión', href: r.url, primario: true } : null, { texto: 'Listo' }].filter(Boolean) });
+    } catch (err) {
+      mostrar({ tono: 'mal', titulo: '❌ No se lanzó', texto: err.message,
+        botones: [{ texto: 'Reintentar', primario: true, onclick: lanzar }, { texto: 'Cerrar' }] });
+    }
+  };
+  mostrar({
+    tono: repetido ? 'ojo' : '',
+    titulo: repetido ? `${issue.identifier} ya se mandó hace poco` : `¿Mandar ${issue.identifier} a Claude?`,
+    texto: repetido ? 'Se mandó hace menos de 30 min. Si lo mandas otra vez se abre otra sesión y saldría otro PR.' : `${issue.title}. Claude lo hace y te deja el PR a revisión, sin fusionar.`,
+    botones: [{ texto: repetido ? 'Mandar otra vez' : 'Mandar', primario: true, onclick: lanzar }, { texto: 'Cancelar' }],
+  });
+}
+
+const AYUDA = {
+  '🤖 listo-para-agente': 'La etiqueta 🤖 listo-para-agente',
+  riesgo: 'El color de riesgo: verde o amarillo',
+  'riesgo verde o amarillo (es rojo)': 'Es rojo: ese no lo hace un agente, lo haces tú',
+  repo: 'El repo: escribe gneuman/<repo> en la descripción o liga el repo al proyecto',
+  'un solo repo (trae varios)': 'Un solo repo: la descripción menciona varios; parte el issue',
+  '"Listo cuando"': 'Una sección "Listo cuando" con lo que se tiene que comprobar',
+};
 
 /** Asignar el issue a otra persona del team, en un modal. */
 function botonDelegar(issue) {
@@ -324,7 +366,7 @@ function tarjetaAtorada(issue) {
   return el('div', { class: 'item' },
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)}${dias}`),
-    el('div', { class: 'acciones' }, botonCopiar(issue), botonDelegar(issue), botonEditar(issue), botonRecordar(issue)));
+    el('div', { class: 'acciones' }, botonTaskAI(issue), botonCopiar(issue), botonDelegar(issue), botonEditar(issue), botonRecordar(issue)));
 }
 
 /** Notas por issue que le sirven a Claude: riesgo, "Listo cuando" y días sin moverse. */
