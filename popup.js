@@ -1,4 +1,4 @@
-import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
+import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, estadisticas, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
 import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, idsDeLabels, idDeIssue, traerIssue, TOPE } from './lib/linear.js';
@@ -511,6 +511,22 @@ function seccion(titulo, lista, tarjeta, vacio, consulta = null) {
   return [el('h2', { class: 'con-consulta' }, el('span', {}, `${titulo} (${lista.length})`), consulta), caja];
 }
 
+/**
+ * Tira de números arriba, como el Radar de la mañana: de un vistazo cuánto hay,
+ * cuánto está en curso y qué se está quemando. Urgentes y vencidos salen en rojo si hay.
+ */
+function numeros(n) {
+  const caja = (valor, texto, alerta = false) =>
+    el('div', { class: `numero ${alerta && valor ? 'alerta' : ''}` }, el('b', {}, String(valor)), el('span', {}, texto));
+  return el('div', { class: 'numeros', title: t('Tus issues abiertos con el filtro de arriba') },
+    caja(n.abiertos, t('abiertos')),
+    caja(n.enCurso, t('en curso')),
+    caja(n.urgentes, t('urgentes'), true),
+    caja(n.vencidos, t('vencidos'), true),
+    caja(n.quietos, t('+3 d quietos'), true),
+    caja(n.agente, t('para agente')));
+}
+
 /** Grupo que no es para hoy: una línea plegada con lista compacta adentro. */
 function plegado(titulo, lista, nota, consulta = null) {
   if (!lista.length) return null;
@@ -553,6 +569,7 @@ async function pintarAhora() {
   main.append(...[
     await seccionTraidos(datos.persona),
     selectorDeProyecto(proyectos, sinProyecto, proyecto),
+    numeros(estadisticas(datos.issues, { equipos, proyecto })),
     el('h2', {}, t('Lo siguiente')),
     g.siguiente ? tarjetaTuya(g.siguiente, true) : el('p', { class: 'vacio' }, proyecto ? t('Nada tuyo para hoy en este proyecto.') : t('Nada tuyo para hoy.')),
     // La consulta de "Ahora" trae también "Lo siguiente": es el mismo grupo.

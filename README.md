@@ -33,6 +33,7 @@ Linear** las crea (las que ya existen no se tocan):
 
 | Pieza | Qué ves |
 |---|---|
+| **Números** | Arriba, de un vistazo como el Radar: abiertos, en curso, urgentes, vencidos, más de 3 días sin moverse y para agente. Urgentes, vencidos y quietos salen en rojo si hay. Con el mismo filtro de equipos y proyecto |
 | **Lo siguiente** | Tu issue más urgente: primero lo que ya está en curso, luego prioridad y fecha. Resumen de 2 líneas y el "Listo cuando" |
 | **Ahora** | `In Progress` + `👤 listo-para-humano` en Todo/Triage. Botón **Empezar** (lo pasa a In Progress y lo abre) |
 | **Para agente** | `🤖 listo-para-agente` sin empezar, con su color de riesgo y quién fusiona |

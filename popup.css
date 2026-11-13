@@ -79,3 +79,11 @@ a.boton.primario { background: var(--acento); border-color: var(--acento); color
 .traer { display: flex; gap: 6px; margin: 4px 0 8px; }
 .traer input { flex: 1; border: 1px solid var(--linea); background: var(--bg); color: inherit; border-radius: 6px; padding: 5px 8px; }
 .quitar { margin-left: auto; padding: 0 6px; border: none; background: none; color: var(--suave); cursor: pointer; }
+
+/* Números rápidos arriba del popup (como el Radar). */
+.numeros { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin: 10px 0 2px; }
+.numero { border: 1px solid var(--linea); border-radius: 6px; padding: 5px 2px; text-align: center; background: var(--tarjeta); }
+.numero b { display: block; font-size: 16px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.numero span { display: block; font-size: 9.5px; color: var(--suave); line-height: 1.15; margin-top: 2px; }
+.numero.alerta { border-color: var(--rojo); }
+.numero.alerta b { color: var(--rojo); }
