@@ -472,7 +472,7 @@ function notasParaClaude(issue) {
  */
 function botonesDeConsulta(grupo, lista, ctx) {
   if (!ctx.persona) return null;
-  const filtro = () => filtroDeGrupo(grupo, { personaId: ctx.persona.id, equipos: ctx.equipos, proyecto: ctx.proyecto });
+  const filtro = () => filtroDeGrupo(grupo, { personaId: ctx.persona.id, equipos: ctx.equipos, proyecto: ctx.proyecto, soloActivos: ctx.soloActivos });
   // Dentro de <summary> un clic también abriría o cerraría el grupo.
   const parar = (e) => { e.preventDefault(); e.stopPropagation(); };
   return el('span', { class: 'consulta' },
@@ -562,7 +562,7 @@ async function pintarAhora() {
   const vigente = c.proyecto === SIN_PROYECTO ? sinProyecto > 0 : proyectos.some((p) => p.id === c.proyecto);
   const proyecto = vigente ? c.proyecto : '';
   const proyectoNombre = proyecto === SIN_PROYECTO ? t('sin proyecto') : proyectos.find((p) => p.id === proyecto)?.name || '';
-  const ctx = { persona: datos.persona, equipos, proyecto, proyectoNombre };
+  const ctx = { persona: datos.persona, equipos, proyecto, proyectoNombre, soloActivos: c.soloProyectosActivos };
   const g = clasificar(datos.issues, { equipos, proyecto });
   const consulta = (grupo) => botonesDeConsulta(grupo, g[grupo], ctx);
   // append() pinta `null` como texto: lo vacío se quita antes.

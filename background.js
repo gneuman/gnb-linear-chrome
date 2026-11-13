@@ -1,6 +1,7 @@
 // Service worker: revisa Linear cada 15 min, pone el número en el ícono,
 // manda el resumen diario y dispara los recordatorios.
 import { resolverPersona, issuesDe } from './lib/linear.js';
+import { enProyectoActivo } from './lib/estado.js';
 import { clasificar, nuevos } from './lib/estado.js';
 import { siguienteHora } from './lib/schedule.js';
 import { config, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
@@ -67,7 +68,9 @@ async function refrescar() {
     // La persona se resuelve una vez y se guarda; se vuelve a buscar si cambian los correos.
     const clave = correos.map((x) => x.correo).join('|');
     const persona = previo.persona && previo.claveCorreos === clave ? previo.persona : await resolverPersona(c.llave, correos);
-    const issues = await issuesDe(c.llave, persona.id);
+    const todos = await issuesDe(c.llave, persona.id);
+    // Los issues de proyectos que no están en curso no se trabajan: ni se muestran ni avisan.
+    const issues = c.soloProyectosActivos ? todos.filter(enProyectoActivo) : todos;
 
     const mismoDueno = previo.persona?.id === persona.id;
     if (c.avisarNuevos && mismoDueno) avisarNuevos(nuevos(previo.ids, issues));

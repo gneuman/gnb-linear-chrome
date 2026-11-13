@@ -131,3 +131,14 @@ test('estadisticas: abiertos, en curso, urgentes, vencidos, quietos y para agent
   ];
   assert.deepEqual(estadisticas(issues, { ahora }), { abiertos: 4, enCurso: 1, urgentes: 1, vencidos: 1, quietos: 1, agente: 1 });
 });
+
+import { enProyectoActivo } from '../lib/estado.js';
+test('enProyectoActivo: solo proyectos In Progress; sin proyecto sí sale', () => {
+  assert.equal(enProyectoActivo({ project: { status: { type: 'started' } } }), true);
+  assert.equal(enProyectoActivo({ project: { status: { type: 'planned' } } }), false);
+  assert.equal(enProyectoActivo({ project: { status: { type: 'paused' } } }), false);
+  assert.equal(enProyectoActivo({ project: { status: { type: 'backlog' } } }), false);
+  assert.equal(enProyectoActivo({ project: { status: { type: 'completed' } } }), false);
+  assert.equal(enProyectoActivo({ project: null }), true);
+  assert.equal(enProyectoActivo({ project: { id: 'x' } }), true);
+});

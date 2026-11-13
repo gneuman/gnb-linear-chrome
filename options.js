@@ -12,6 +12,7 @@ config().then(async (c) => {
   $('#llave').value = c.llave;
   $('#hora').value = c.horaResumen;
   $('#equipos').value = c.equipos;
+  $('#solo-activos').checked = c.soloProyectosActivos;
   $('#correo').value = c.correo;
   $('#avisar').checked = c.avisarNuevos;
   $('#rutina-taskai').value = c.rutinaTaskAI;
@@ -64,7 +65,7 @@ $('#f').addEventListener('submit', async (e) => {
     const duenoRepos = $('#dueno').value.trim().replace(/^@/, '');
     if (duenoRepos && !/^[\w.-]+$/.test(duenoRepos)) throw new Error(t('El dueño de GitHub es solo el usuario u organización, sin liga (por ejemplo: mi-empresa).'));
     const idioma = $('#idioma').value;
-    await guardarConfig({ idioma, llave, correo, avisarNuevos: $('#avisar').checked, horaResumen: $('#hora').value || '09:00', equipos: $('#equipos').value.trim(), agente: $('#agente').value, duenoRepos, ...taskai });
+    await guardarConfig({ idioma, llave, correo, avisarNuevos: $('#avisar').checked, soloProyectosActivos: $('#solo-activos').checked, horaResumen: $('#hora').value || '09:00', equipos: $('#equipos').value.trim(), agente: $('#agente').value, duenoRepos, ...taskai });
     $('#token-taskai').value = '';
     $('#borrar-token').checked = false;
     $('#token-taskai').placeholder = (await config()).tokenTaskAI ? t('Guardado · escribe uno nuevo para cambiarlo') : 'sk-ant-…';

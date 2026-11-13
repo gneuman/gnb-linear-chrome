@@ -180,3 +180,9 @@ test('textoDeIssue dice el repo, o que falta en Linear', () => {
   assert.match(textoDeIssue({ ...base, attachments: { nodes: [{ url: 'https://github.com/gneuman/postleads/pull/9' }] } }), /- Repo: gneuman\/postleads \(https:\/\/github\.com\/gneuman\/postleads\)/);
   assert.match(textoDeIssue(base), /- Repo: no está en Linear/);
 });
+
+test('filtroDeGrupo con soloActivos: proyecto en curso o sin proyecto', () => {
+  const f = filtroDeGrupo('ahora', { personaId: 'p', soloActivos: true });
+  assert.ok(JSON.stringify(f).includes('{"or":[{"project":{"null":true}},{"project":{"status":{"type":{"eq":"started"}}}}]}'));
+  assert.ok(!JSON.stringify(filtroDeGrupo('ahora', { personaId: 'p' })).includes('status'));
+});
