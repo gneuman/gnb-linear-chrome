@@ -1,9 +1,10 @@
-import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
+import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, estadisticas, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
 import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, idsDeLabels, idDeIssue, traerIssue, TOPE } from './lib/linear.js';
 import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento, prsDe, hechoPorPRs } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
+import { t, locale, usarIdioma, traducirDom } from './lib/i18n.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -26,31 +27,31 @@ function avisar(texto, ok = false) {
   a.hidden = !texto;
 }
 
-const PRIORIDAD = ['', 'Urgente', 'Alta', 'Media', 'Baja'];
+const PRIORIDAD = () => ['', t('Urgente'), t('Alta'), t('Media'), t('Baja')];
 
 function meta(issue) {
   const partes = [issue.team?.key, issue.state?.name];
-  if (issue.dueDate) partes.push(`vence ${issue.dueDate}`);
-  if (issue.delegate) partes.push(`🤖 ${issue.delegate.name} lo trabaja`);
+  if (issue.dueDate) partes.push(t('vence {fecha}', { fecha: issue.dueDate }));
+  if (issue.delegate) partes.push(t('🤖 {nombre} lo trabaja', { nombre: issue.delegate.name }));
   // El repo que TaskAI tiene que tener conectado para hacer el issue.
   const { repo, varios } = repoParaClaude(issue, ajustes.duenoRepos);
-  partes.push(repo ? `📦 ${repo}` : varios ? '📦 varios repos' : '📦 sin repo');
+  partes.push(repo ? `📦 ${repo}` : varios ? t('📦 varios repos') : t('📦 sin repo'));
   return partes.filter(Boolean).join(' · ');
 }
 
 /** Importancia y tamaño de un vistazo: prioridad con color y talla (XS–XL). */
 function chips(issue) {
-  const t = talla(issue);
+  const tt = talla(issue);
   return [
-    issue.priority ? el('span', { class: `chip p${issue.priority}`, title: `Prioridad ${PRIORIDAD[issue.priority].toLowerCase()}` }, PRIORIDAD[issue.priority]) : null,
-    t ? el('span', { class: 'chip talla', title: 'Tamaño (estimación)' }, t) : null,
+    issue.priority ? el('span', { class: `chip p${issue.priority}`, title: t('Prioridad {p}', { p: PRIORIDAD()[issue.priority].toLowerCase() }) }, PRIORIDAD()[issue.priority]) : null,
+    tt ? el('span', { class: 'chip talla', title: t('Tamaño (estimación)') }, tt) : null,
   ];
 }
 
 function cabecera(issue) {
   const color = riesgo(issue);
   return el('div', { class: 'fila' },
-    el('span', { class: `punto ${color || ''}`, title: color ? `riesgo ${color}` : 'sin riesgo' }),
+    el('span', { class: `punto ${color || ''}`, title: color ? t('riesgo {color}', { color: t(color) }) : t('sin riesgo') }),
     el('span', { class: 'id' }, issue.identifier),
     el('span', { class: 'titulo' }, el('a', { href: issue.url, target: '_blank' }, issue.title)),
     ...chips(issue));
@@ -58,7 +59,7 @@ function cabecera(issue) {
 
 function botonRecordar(issue) {
   return el('button', {
-    title: 'Crear un recordatorio de este issue',
+    title: t('Crear un recordatorio de este issue'),
     onclick: () => {
       $('#rapido-texto').value = `${issue.identifier} ${issue.title}`;
       $('#rapido-texto').dataset.issueId = issue.identifier;
@@ -71,21 +72,21 @@ function botonRecordar(issue) {
 /** Copia este issue listo para pegar en Claude y ponerse a trabajar: rama, descripción y cómo arrancar. */
 function botonCopiar(issue) {
   return el('button', {
-    title: 'Copiar este issue para pegarlo en una sesión de Claude',
+    title: t('Copiar este issue para pegarlo en una sesión de Claude'),
     onclick: async () => {
       try {
         await navigator.clipboard.writeText(textoDeIssue(issue));
-        avisar(`${issue.identifier} copiado. Pégalo en Claude.`, true);
+        avisar(t('{id} copiado. Pégalo en Claude.', { id: issue.identifier }), true);
       } catch (err) {
-        avisar(`No pude copiar: ${err.message}`);
+        avisar(t('No pude copiar: {error}', { error: err.message }));
       }
     },
-  }, 'Copiar issue');
+  }, t('Copiar issue'));
 }
 
 async function accion(fn, okTexto) {
   try {
-    avisar('Guardando en Linear…', true);
+    avisar(t('Guardando en Linear…'), true);
     await fn();
     avisar(typeof okTexto === 'function' ? okTexto() : okTexto, true);
     await chrome.runtime.sendMessage({ tipo: 'refrescar' });
@@ -102,11 +103,11 @@ function tarjetaTuya(issue, grande = false) {
     cabecera(issue),
     el('div', { class: 'meta' }, meta(issue)),
     grande && texto ? el('div', { class: 'meta' }, texto) : null,
-    listoCuando ? el('div', { class: 'listo' }, el('b', {}, 'Listo cuando: '), listoCuando) : null,
+    listoCuando ? el('div', { class: 'listo' }, el('b', {}, t('Listo cuando: ')), listoCuando) : null,
     lineaPRs(issue),
     el('div', { class: 'acciones' },
       enCurso
-        ? el('button', { onclick: () => chrome.tabs.create({ url: issue.url }) }, 'Abrir')
+        ? el('button', { onclick: () => chrome.tabs.create({ url: issue.url }) }, t('Abrir'))
         : el('button', {
             class: 'primario',
             onclick: async () => {
@@ -117,7 +118,7 @@ function tarjetaTuya(issue, grande = false) {
                 return estado;
               }, `${issue.identifier} → In Progress`);
             },
-          }, 'Empezar'),
+          }, t('Empezar')),
       botonCopiar(issue),
       botonAgente(issue),
       // En tus tarjetas solo sale si ya está listo; en "Para agente" sale siempre y dice qué falta.
@@ -152,32 +153,32 @@ async function soltar(issue, color, boton) {
   await accion(async () => {
     r = await moverAAgente(c.llave, issue, { cambio: labelsParaAgente(issue, color, await idsEtiquetas(c.llave)), agenteNombre: c.agente });
   }, () => {
-    if (r.sinAgente) return `${issue.identifier} → Para agente, sin delegar: no encontré al agente "${r.sinAgente}". Revísalo en Ajustes.`;
-    return `${issue.identifier} → Para agente${r.agente ? ` · ${r.agente} ya lo está trabajando` : ''}`;
+    if (r.sinAgente) return t('{id} → Para agente, sin delegar: no encontré al agente "{agente}". Revísalo en Ajustes.', { id: issue.identifier, agente: r.sinAgente });
+    return `${issue.identifier} → ${t('Para agente')}${r.agente ? t(' · {agente} ya lo está trabajando', { agente: r.agente }) : ''}`;
   });
   botones.forEach((b) => { b.disabled = false; });
 }
 
 /** Si no tiene riesgo, lo pide ahí mismo con tres botones; si ya lo tiene, lo suelta directo. */
-function botonAgente(issue, texto = 'Mover a agente') {
+function botonAgente(issue, texto = t('Mover a agente')) {
   return el('button', {
-    title: ajustes.agente ? `Soltarlo a un agente (🤖) y delegarlo a ${ajustes.agente}` : 'Soltarlo a un agente (🤖)',
+    title: ajustes.agente ? t('Soltarlo a un agente (🤖) y delegarlo a {agente}', { agente: ajustes.agente }) : t('Soltarlo a un agente (🤖)'),
     onclick: (e) => {
       const boton = e.currentTarget;
       if (riesgo(issue)) return soltar(issue, null, boton);
       const fila = boton.closest('.acciones');
       if (fila.nextElementSibling?.classList.contains('elegir-riesgo')) return;
       fila.after(el('div', { class: 'acciones elegir-riesgo' },
-        el('span', { class: 'meta' }, 'Riesgo:'),
+        el('span', { class: 'meta' }, t('Riesgo:')),
         ...['verde', 'amarillo', 'rojo'].map((color) =>
-          el('button', { class: `riesgo ${color}`, onclick: (ev) => soltar(issue, color, ev.currentTarget) }, color))));
+          el('button', { class: `riesgo ${color}`, onclick: (ev) => soltar(issue, color, ev.currentTarget) }, t(color)))));
     },
   }, texto);
 }
 
 function tarjetaAgente(issue) {
   const color = riesgo(issue);
-  const nota = { verde: 'el agente fusiona', amarillo: 'segundo agente + tu "va"', rojo: 'solo tú fusionas' }[color] || 'sin riesgo: ponlo antes de soltarlo';
+  const nota = t({ verde: 'el agente fusiona', amarillo: 'segundo agente + tu "va"', rojo: 'solo tú fusionas' }[color] || 'sin riesgo: ponlo antes de soltarlo');
   return el('div', { class: 'item' },
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)} · ${nota}`),
@@ -186,7 +187,7 @@ function tarjetaAgente(issue) {
     el('div', { class: 'acciones' },
       botonTaskAI(issue),
       botonCopiar(issue),
-      issue.delegate || !ajustes.agente ? null : botonAgente(issue, `Delegar a ${ajustes.agente}`),
+      issue.delegate || !ajustes.agente ? null : botonAgente(issue, t('Delegar a {agente}', { agente: ajustes.agente })),
       botonComentar(issue),
       botonDelegar(issue),
       botonEditar(issue)));
@@ -231,9 +232,9 @@ function botonTaskAI(issue) {
   const { listo, falta } = listoParaClaude(issue, ajustes.duenoRepos);
   return el('button', {
     class: listo ? 'primario' : '',
-    title: listo ? 'Claude lo hace y te deja el PR a revisión, sin fusionar' : `Antes falta: ${falta.join(', ')}`,
+    title: listo ? t('Claude lo hace y te deja el PR a revisión, sin fusionar') : t('Antes falta: {lista}', { lista: falta.map((f) => t(f)).join(', ') }),
     onclick: () => abrirTaskAI(issue),
-  }, listo ? '🤖 Mandar a Claude' : `🤖 Mandar a Claude · falta ${falta.length}`);
+  }, listo ? t('🤖 Mandar a Claude') : t('🤖 Mandar a Claude · falta {n}', { n: falta.length }));
 }
 
 async function abrirTaskAI(issue, m = null) {
@@ -245,7 +246,7 @@ async function abrirTaskAI(issue, m = null) {
     const color = riesgo(issue);
     const arreglable = falta.every((f) => f === LABEL.agente || f === 'riesgo');
     const poner = (nuevo) => async () => {
-      mostrar({ titulo: `Preparando ${issue.identifier}…` });
+      mostrar({ titulo: t('Preparando {id}…', { id: issue.identifier }) });
       try {
         await actualizar(c.llave, issue.id, labelsParaAgente(issue, nuevo, await idsEtiquetas(c.llave)));
         const extra = [{ name: LABEL.agente }];
@@ -253,49 +254,49 @@ async function abrirTaskAI(issue, m = null) {
         await abrirTaskAI({ ...issue, labels: { nodes: [...(issue.labels?.nodes || []), ...extra] } }, m);
         chrome.runtime.sendMessage({ tipo: 'refrescar' }).then(pintar);
       } catch (err) {
-        mostrar({ tono: 'mal', titulo: '❌ No pude prepararlo', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+        mostrar({ tono: 'mal', titulo: t('❌ No pude prepararlo'), texto: err.message, botones: [{ texto: t('Cerrar') }] });
       }
     };
-    const lista = el('ul', { class: 'falta' }, ...falta.map((f) => el('li', {}, AYUDA[f] || f)));
+    const lista = el('ul', { class: 'falta' }, ...falta.map((f) => el('li', {}, AYUDA[f] ? t(AYUDA[f], { label: LABEL.agente }) : f)));
     const botones = color === 'rojo'
-      ? [{ texto: 'Abrir en Linear', href: issue.url, primario: true }, { texto: 'Cerrar' }]
+      ? [{ texto: t('Abrir en Linear'), href: issue.url, primario: true }, { texto: t('Cerrar') }]
       : arreglable
         ? (color
-          ? [{ texto: 'Ponerle 🤖 y mandarlo', primario: true, onclick: poner(null) }]
-          : [{ texto: '🤖 verde', primario: true, onclick: poner('verde') }, { texto: '🤖 amarillo', onclick: poner('amarillo') }])
-          .concat([{ texto: 'Cancelar' }])
-        : [{ texto: 'Abrir en Linear', href: issue.url, primario: true }, { texto: 'Cerrar' }];
-    return mostrar({ tono: 'ojo', titulo: `${issue.identifier} todavía no está listo para Claude`,
-      texto: arreglable && color !== 'rojo' ? 'Lo arreglas desde aquí:' : 'Esto se arregla en el issue, en Linear:', cuerpo: lista, botones });
+          ? [{ texto: t('Ponerle 🤖 y mandarlo'), primario: true, onclick: poner(null) }]
+          : [{ texto: `🤖 ${t('verde')}`, primario: true, onclick: poner('verde') }, { texto: `🤖 ${t('amarillo')}`, onclick: poner('amarillo') }])
+          .concat([{ texto: t('Cancelar') }])
+        : [{ texto: t('Abrir en Linear'), href: issue.url, primario: true }, { texto: t('Cerrar') }];
+    return mostrar({ tono: 'ojo', titulo: t('{id} todavía no está listo para Claude', { id: issue.identifier }),
+      texto: arreglable && color !== 'rojo' ? t('Lo arreglas desde aquí:') : t('Esto se arregla en el issue, en Linear:'), cuerpo: lista, botones });
   }
 
   if (!c.tokenTaskAI) {
-    return mostrar({ tono: 'mal', titulo: '❌ No se lanzó', texto: 'Falta el token de tu rutina. Genéralo en claude.ai/code/routines → tu rutina → disparo por API, y pégalo en Ajustes.',
-      botones: [{ texto: 'Abrir Ajustes', primario: true, onclick: () => chrome.runtime.openOptionsPage() }, { texto: 'Cerrar' }] });
+    return mostrar({ tono: 'mal', titulo: t('❌ No se lanzó'), texto: t('Falta el token de tu rutina. Genéralo en claude.ai/code/routines → tu rutina → disparo por API, y pégalo en Ajustes.'),
+      botones: [{ texto: t('Abrir Ajustes'), primario: true, onclick: () => chrome.runtime.openOptionsPage() }, { texto: t('Cerrar') }] });
   }
   // Cada disparo abre una sesión nueva de Claude: dos clics = dos PRs.
   const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
   const repetido = mandadoHacePoco(enviadosTaskAI, issue.identifier);
   const lanzar = async () => {
-    mostrar({ titulo: `Lanzando ${issue.identifier}…`, texto: 'Hablando con TaskAI.' });
+    mostrar({ titulo: t('Lanzando {id}…', { id: issue.identifier }), texto: t('Hablando con TaskAI.') });
     try {
       const r = await dispararTaskAI({ token: c.tokenTaskAI, rutina: c.rutinaTaskAI, issueId: issue.identifier });
       await chrome.storage.local.set({ enviadosTaskAI: { ...enviadosTaskAI, [issue.identifier]: Date.now() } });
-      mostrar({ tono: 'bien', titulo: `✅ Lanzado: ${issue.identifier}`,
-        texto: `TaskAI lo recibió (${r.status}). Claude ya está trabajando; el PR llega a Internal Review y te comenta en el issue.`,
-        botones: [r.url ? { texto: 'Ver la sesión', href: r.url, primario: true } : null, { texto: 'Listo' }].filter(Boolean) });
+      mostrar({ tono: 'bien', titulo: t('✅ Lanzado: {id}', { id: issue.identifier }),
+        texto: t('TaskAI lo recibió ({status}). Claude ya está trabajando; el PR llega a Internal Review y te comenta en el issue.', { status: r.status }),
+        botones: [r.url ? { texto: t('Ver la sesión'), href: r.url, primario: true } : null, { texto: t('Listo') }].filter(Boolean) });
     } catch (err) {
-      mostrar({ tono: 'mal', titulo: '❌ No se lanzó', texto: err.message,
-        botones: [{ texto: 'Reintentar', primario: true, onclick: lanzar }, { texto: 'Cerrar' }] });
+      mostrar({ tono: 'mal', titulo: t('❌ No se lanzó'), texto: err.message,
+        botones: [{ texto: t('Reintentar'), primario: true, onclick: lanzar }, { texto: t('Cerrar') }] });
     }
   };
   mostrar({
     tono: repetido ? 'ojo' : '',
-    titulo: repetido ? `${issue.identifier} ya se mandó hace poco` : `¿Mandar ${issue.identifier} a Claude?`,
-    texto: repetido ? 'Se mandó hace menos de 30 min. Si lo mandas otra vez se abre otra sesión y saldría otro PR.' : `${issue.title}. Claude lo hace y te deja el PR a revisión, sin fusionar.`,
+    titulo: repetido ? t('{id} ya se mandó hace poco', { id: issue.identifier }) : t('¿Mandar {id} a Claude?', { id: issue.identifier }),
+    texto: repetido ? t('Se mandó hace menos de 30 min. Si lo mandas otra vez se abre otra sesión y saldría otro PR.') : `${issue.title}. ${t('Claude lo hace y te deja el PR a revisión, sin fusionar.')}`,
     // La extensión no ve el entorno de la rutina: no sabe si el repo está conectado, solo lo avisa.
-    cuerpo: el('p', { class: 'repo' }, '📦 Repo: ', el('b', {}, repo), el('br'), 'Revisa que tu rutina lo tenga conectado (la extensión no lo puede ver). Si no, Claude comenta "falta agregar" en el issue y no lo hace.'),
-    botones: [{ texto: repetido ? 'Mandar otra vez' : 'Mandar', primario: true, onclick: lanzar }, { texto: 'Abrir mi rutina', href: urlRutina(c.rutinaTaskAI) }, { texto: 'Cancelar' }],
+    cuerpo: el('p', { class: 'repo' }, '📦 Repo: ', el('b', {}, repo), el('br'), t('Revisa que tu rutina lo tenga conectado (la extensión no lo puede ver). Si no, Claude comenta "falta agregar" en el issue y no lo hace.')),
+    botones: [{ texto: repetido ? t('Mandar otra vez') : t('Mandar'), primario: true, onclick: lanzar }, { texto: t('Abrir mi rutina'), href: urlRutina(c.rutinaTaskAI) }, { texto: t('Cancelar') }],
   });
 }
 
@@ -303,7 +304,7 @@ async function abrirTaskAI(issue, m = null) {
 const urlRutina = (id) => `https://claude.ai/code/routines/${id || ''}`;
 
 const AYUDA = {
-  [LABEL.agente]: `La etiqueta ${LABEL.agente}`,
+  [LABEL.agente]: 'La etiqueta {label}',
   riesgo: 'El color de riesgo: verde o amarillo',
   'riesgo verde o amarillo (es rojo)': 'Es rojo: ese no lo hace un agente, lo haces tú',
   repo: 'El repo: lígalo al issue o al proyecto en Linear, o escribe dueño/repo en la descripción (el dueño de GitHub va en Ajustes)',
@@ -314,60 +315,60 @@ const AYUDA = {
 /** Asignar el issue a otra persona del team, en un modal. */
 function botonDelegar(issue) {
   return el('button', {
-    title: 'Asignárselo a otra persona del equipo',
+    title: t('Asignárselo a otra persona del equipo'),
     onclick: async () => {
-      const m = modal({ titulo: `Delegar ${issue.identifier}`, texto: 'Cargando al equipo…' });
+      const m = modal({ titulo: t('Delegar {id}', { id: issue.identifier }), texto: t('Cargando al equipo…') });
       try {
         const c = await config();
         const { personas } = await opcionesDe(c.llave, issue.team.id);
         const sel = el('select', { class: 'modal-select' },
           ...personas.map((p) => el('option', { value: p.id, selected: p.id === issue.assignee?.id ? 'selected' : false }, p.name)));
-        m.cambiar({ titulo: `Delegar ${issue.identifier}`, texto: issue.title, cuerpo: sel,
-          botones: [{ texto: 'Asignar', primario: true, onclick: async () => {
+        m.cambiar({ titulo: t('Delegar {id}', { id: issue.identifier }), texto: issue.title, cuerpo: sel,
+          botones: [{ texto: t('Asignar'), primario: true, onclick: async () => {
             const nombre = sel.selectedOptions[0].text;
-            m.cambiar({ titulo: `Asignando a ${nombre}…` });
+            m.cambiar({ titulo: t('Asignando a {nombre}…', { nombre }) });
             try {
               await actualizar(c.llave, issue.id, { assigneeId: sel.value });
-              m.cambiar({ tono: 'bien', titulo: `✅ ${issue.identifier} ahora es de ${nombre}`, texto: 'Ya está en Linear. Le llega la notificación.', botones: [{ texto: 'Listo' }] });
+              m.cambiar({ tono: 'bien', titulo: t('✅ {id} ahora es de {nombre}', { id: issue.identifier, nombre }), texto: t('Ya está en Linear. Le llega la notificación.'), botones: [{ texto: t('Listo') }] });
               await chrome.runtime.sendMessage({ tipo: 'refrescar' });
               await pintar();
             } catch (err) {
-              m.cambiar({ tono: 'mal', titulo: '❌ No se asignó', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+              m.cambiar({ tono: 'mal', titulo: t('❌ No se asignó'), texto: err.message, botones: [{ texto: t('Cerrar') }] });
             }
-          } }, { texto: 'Cancelar' }] });
+          } }, { texto: t('Cancelar') }] });
       } catch (err) {
-        m.cambiar({ tono: 'mal', titulo: '❌ No pude cargar al equipo', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+        m.cambiar({ tono: 'mal', titulo: t('❌ No pude cargar al equipo'), texto: err.message, botones: [{ texto: t('Cerrar') }] });
       }
     },
-  }, 'Delegar a…');
+  }, t('Delegar a…'));
 }
 
 /** Dejar un comentario en Linear sin abrir el issue. Ctrl+Enter lo manda. */
 function botonComentar(issue) {
   return el('button', {
-    title: 'Dejar un comentario en Linear',
+    title: t('Dejar un comentario en Linear'),
     onclick: () => {
-      const caja = el('textarea', { class: 'modal-texto', rows: '4', placeholder: 'Tu comentario…' });
+      const caja = el('textarea', { class: 'modal-texto', rows: '4', placeholder: t('Tu comentario…') });
       let m;
       const mandar = async () => {
         const texto = caja.value;
         if (!texto.trim()) { caja.focus(); return; }
-        m.cambiar({ titulo: 'Comentando…' });
+        m.cambiar({ titulo: t('Comentando…') });
         try {
           const c = await config();
           await comentar(c.llave, issue.id, texto);
-          m.cambiar({ tono: 'bien', titulo: `✅ Comentario en ${issue.identifier}`, texto: 'Ya está en Linear.', botones: [{ texto: 'Listo' }] });
+          m.cambiar({ tono: 'bien', titulo: t('✅ Comentario en {id}', { id: issue.identifier }), texto: t('Ya está en Linear.'), botones: [{ texto: t('Listo') }] });
         } catch (err) {
           // El texto no se pierde: vuelve a la caja para reintentar.
-          m.cambiar({ tono: 'mal', titulo: '❌ No se comentó', texto: err.message, cuerpo: caja, botones: [{ texto: 'Reintentar', primario: true, onclick: mandar }, { texto: 'Cerrar' }] });
+          m.cambiar({ tono: 'mal', titulo: t('❌ No se comentó'), texto: err.message, cuerpo: caja, botones: [{ texto: t('Reintentar'), primario: true, onclick: mandar }, { texto: t('Cerrar') }] });
         }
       };
       caja.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) mandar(); });
-      m = modal({ titulo: `Comentar en ${issue.identifier}`, texto: issue.title, cuerpo: caja,
-        botones: [{ texto: 'Comentar', primario: true, onclick: mandar }, { texto: 'Cancelar' }] });
+      m = modal({ titulo: t('Comentar en {id}', { id: issue.identifier }), texto: issue.title, cuerpo: caja,
+        botones: [{ texto: t('Comentar'), primario: true, onclick: mandar }, { texto: t('Cancelar') }] });
       caja.focus();
     },
-  }, '💬 Comentar');
+  }, t('💬 Comentar'));
 }
 
 // Estados y personas por team: se piden una vez por popup abierto.
@@ -380,12 +381,12 @@ function opcionesDe(llave, teamId) {
 /** Abre debajo de la tarjeta los selectores de estado, talla y persona; cada cambio va directo a Linear. */
 function botonEditar(issue) {
   return el('button', {
-    title: 'Cambiar estado, prioridad, talla o persona en Linear',
+    title: t('Cambiar estado, prioridad, talla o persona en Linear'),
     onclick: async (e) => {
       const fila = e.currentTarget.closest('.acciones');
       const abierta = fila.nextElementSibling;
       if (abierta?.classList.contains('editar')) return abierta.remove();
-      const caja = el('div', { class: 'acciones editar' }, el('span', { class: 'meta' }, 'Cargando…'));
+      const caja = el('div', { class: 'acciones editar' }, el('span', { class: 'meta' }, t('Cargando…')));
       fila.after(caja);
       try {
         const c = await config();
@@ -393,23 +394,23 @@ function botonEditar(issue) {
         const cambiar = (input, texto) => accion(() => actualizar(c.llave, issue.id, input), `${issue.identifier} → ${texto}`);
         const opcion = (value, texto, actual) => el('option', { value, selected: actual ? 'selected' : false }, texto);
         caja.replaceChildren(
-          el('select', { title: 'Estado', onchange: (ev) => cambiar({ stateId: ev.target.value }, ev.target.selectedOptions[0].text) },
+          el('select', { title: t('Estado'), onchange: (ev) => cambiar({ stateId: ev.target.value }, ev.target.selectedOptions[0].text) },
             ...estados.map((s) => opcion(s.id, s.name, s.id === issue.state?.id))),
-          el('select', { title: 'Prioridad', onchange: (ev) => cambiar({ priority: Number(ev.target.value) }, `prioridad ${ev.target.selectedOptions[0].text}`) },
-            ...[[1, 'Urgente'], [2, 'Alta'], [3, 'Media'], [4, 'Baja'], [0, 'Sin prioridad']].map(([v, t]) => opcion(String(v), t, (issue.priority ?? 0) === v))),
-          el('select', { title: 'Talla', onchange: (ev) => cambiar({ estimate: ev.target.value ? Number(ev.target.value) : null }, `talla ${ev.target.selectedOptions[0].text}`) },
-            opcion('', 'Sin talla', issue.estimate == null),
+          el('select', { title: t('Prioridad'), onchange: (ev) => cambiar({ priority: Number(ev.target.value) }, t('prioridad {p}', { p: ev.target.selectedOptions[0].text })) },
+            ...[[1, 'Urgente'], [2, 'Alta'], [3, 'Media'], [4, 'Baja'], [0, 'Sin prioridad']].map(([v, txt]) => opcion(String(v), t(txt), (issue.priority ?? 0) === v))),
+          el('select', { title: t('Talla'), onchange: (ev) => cambiar({ estimate: ev.target.value ? Number(ev.target.value) : null }, t('talla {t}', { t: ev.target.selectedOptions[0].text })) },
+            opcion('', t('Sin talla'), issue.estimate == null),
             // Una talla fuera de la lista (13, 21) se enseña tal cual, no como "Sin talla".
             issue.estimate != null && !OPCIONES_TALLA.some(([v]) => v === issue.estimate) ? opcion(String(issue.estimate), talla(issue), true) : null,
-            ...OPCIONES_TALLA.map(([v, t]) => opcion(String(v), t, issue.estimate === v))),
-          el('select', { title: 'Persona', onchange: (ev) => cambiar({ assigneeId: ev.target.value || null }, ev.target.selectedOptions[0].text) },
-            opcion('', 'Sin asignar', !issue.assignee),
+            ...OPCIONES_TALLA.map(([v, txt]) => opcion(String(v), txt, issue.estimate === v))),
+          el('select', { title: t('Persona'), onchange: (ev) => cambiar({ assigneeId: ev.target.value || null }, ev.target.selectedOptions[0].text) },
+            opcion('', t('Sin asignar'), !issue.assignee),
             ...personas.map((p) => opcion(p.id, p.name, p.id === issue.assignee?.id))));
       } catch (err) {
         caja.replaceChildren(el('span', { class: 'aviso' }, err.message));
       }
     },
-  }, 'Editar');
+  }, t('Editar'));
 }
 
 /**
@@ -425,31 +426,31 @@ function lineaPRs(issue) {
   const algunoFusionado = prs.some((p) => p.estado === 'fusionado');
   return el('div', { class: `prs ${hecho ? 'fusionado' : ''}` },
     '🔀 ',
-    ...prs.flatMap((p, i) => [i ? ' · ' : '', el('a', { href: p.url, target: '_blank', title: p.titulo }, `PR #${p.numero}`), p.estado ? ` ${p.estado}` : '']),
+    ...prs.flatMap((p, i) => [i ? ' · ' : '', el('a', { href: p.url, target: '_blank', title: p.titulo }, `PR #${p.numero}`), p.estado ? ` ${t(p.estado)}` : '']),
     hecho
-      ? el('span', {}, ' — ya está hecho. ', el('button', { onclick: () => confirmarDone(issue) }, 'Pasar a Done'))
+      ? el('span', {}, t(' · ya está hecho. '), el('button', { onclick: () => confirmarDone(issue) }, t('Pasar a Done')))
       : algunoFusionado && pendientes.length
-        ? el('span', {}, ` — falta ${pendientes.map((p) => `#${p.numero}`).join(', ')}: revísalo o ciérralo antes de pasar a Done.`)
+        ? el('span', {}, t(' · falta {lista}: revísalo o ciérralo antes de pasar a Done.', { lista: pendientes.map((p) => `#${p.numero}`).join(', ') }))
         : null);
 }
 
 function confirmarDone(issue, despues = pintar) {
-  const m = modal({ titulo: `¿Pasar ${issue.identifier} a Done?`, texto: issue.title, botones: [{ texto: 'Pasar a Done', primario: true, onclick: async () => {
-    m.cambiar({ titulo: `Cerrando ${issue.identifier}…` });
+  const m = modal({ titulo: t('¿Pasar {id} a Done?', { id: issue.identifier }), texto: issue.title, botones: [{ texto: t('Pasar a Done'), primario: true, onclick: async () => {
+    m.cambiar({ titulo: t('Cerrando {id}…', { id: issue.identifier }) });
     try {
       const c = await config();
       await terminar(c.llave, issue);
-      m.cambiar({ tono: 'bien', titulo: `✅ ${issue.identifier} en Done`, botones: [{ texto: 'Listo' }] });
+      m.cambiar({ tono: 'bien', titulo: t('✅ {id} en Done', { id: issue.identifier }), botones: [{ texto: t('Listo') }] });
       await chrome.runtime.sendMessage({ tipo: 'refrescar' });
       await despues();
     } catch (err) {
-      m.cambiar({ tono: 'mal', titulo: '❌ No se cerró', texto: err.message, botones: [{ texto: 'Cerrar' }] });
+      m.cambiar({ tono: 'mal', titulo: t('❌ No se cerró'), texto: err.message, botones: [{ texto: t('Cerrar') }] });
     }
-  } }, { texto: 'Cancelar' }] });
+  } }, { texto: t('Cancelar') }] });
 }
 
 function tarjetaAtorada(issue) {
-  const dias = issue.dias == null ? '' : ` · ${issue.dias} d sin moverse`;
+  const dias = issue.dias == null ? '' : ` · ${t('{n} d sin moverse', { n: issue.dias })}`;
   return el('div', { class: 'item' },
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)}${dias}`),
@@ -476,7 +477,7 @@ function botonesDeConsulta(grupo, lista, ctx) {
   const parar = (e) => { e.preventDefault(); e.stopPropagation(); };
   return el('span', { class: 'consulta' },
     el('button', {
-      title: 'Copiar el endpoint exacto y la lista para pegar en Claude',
+      title: t('Copiar el endpoint exacto y la lista para pegar en Claude'),
       onclick: async (e) => {
         parar(e);
         const texto = textoParaClaude({
@@ -485,12 +486,12 @@ function botonesDeConsulta(grupo, lista, ctx) {
         });
         try {
           await navigator.clipboard.writeText(texto);
-          avisar(`${GRUPOS[grupo]}: consulta y ${lista.length} issues copiados. Pégalos en Claude.`, true);
+          avisar(t('{grupo}: consulta y {n} issues copiados. Pégalos en Claude.', { grupo: t(GRUPOS[grupo]), n: lista.length }), true);
         } catch (err) {
-          avisar(`No pude copiar: ${err.message}`);
+          avisar(t('No pude copiar: {error}', { error: err.message }));
         }
       },
-    }, 'Copiar para Claude'));
+    }, t('Copiar para Claude')));
 }
 
 const VISIBLES = 5;
@@ -502,12 +503,28 @@ function seccion(titulo, lista, tarjeta, vacio, consulta = null) {
     const mostrar = todas ? lista : lista.slice(0, VISIBLES);
     caja.replaceChildren(...mostrar.map(tarjeta));
     if (lista.length > VISIBLES) {
-      caja.append(el('button', { class: 'mas', onclick: () => pintarCaja(!todas) }, todas ? 'Ver menos' : `Ver ${lista.length - VISIBLES} más`));
+      caja.append(el('button', { class: 'mas', onclick: () => pintarCaja(!todas) }, todas ? t('Ver menos') : t('Ver {n} más', { n: lista.length - VISIBLES })));
     }
   };
   if (lista.length) pintarCaja(false);
   else caja.append(el('p', { class: 'vacio' }, vacio));
   return [el('h2', { class: 'con-consulta' }, el('span', {}, `${titulo} (${lista.length})`), consulta), caja];
+}
+
+/**
+ * Tira de números arriba, como el Radar de la mañana: de un vistazo cuánto hay,
+ * cuánto está en curso y qué se está quemando. Urgentes y vencidos salen en rojo si hay.
+ */
+function numeros(n) {
+  const caja = (valor, texto, alerta = false) =>
+    el('div', { class: `numero ${alerta && valor ? 'alerta' : ''}` }, el('b', {}, String(valor)), el('span', {}, texto));
+  return el('div', { class: 'numeros', title: t('Tus issues abiertos con el filtro de arriba') },
+    caja(n.abiertos, t('abiertos')),
+    caja(n.enCurso, t('en curso')),
+    caja(n.urgentes, t('urgentes'), true),
+    caja(n.vencidos, t('vencidos'), true),
+    caja(n.quietos, t('+3 d quietos'), true),
+    caja(n.agente, t('para agente')));
 }
 
 /** Grupo que no es para hoy: una línea plegada con lista compacta adentro. */
@@ -529,12 +546,12 @@ async function pintarAhora() {
   const datos = await cache();
   main.replaceChildren();
   if (!c.llave) {
-    main.append(el('p', {}, 'Conecta Linear: ', el('a', { href: '#', onclick: () => chrome.runtime.openOptionsPage() }, 'pon tu API key en Ajustes'), '.'));
+    main.append(el('p', {}, t('Conecta Linear: '), el('a', { href: '#', onclick: () => chrome.runtime.openOptionsPage() }, t('pon tu API key en Ajustes')), '.'));
     return;
   }
   if (datos?.error) main.append(el('p', { class: 'aviso' }, datos.error));
   if (!datos?.issues) {
-    main.append(el('p', { class: 'vacio' }, 'Cargando…'));
+    main.append(el('p', { class: 'vacio' }, t('Cargando…')));
     return;
   }
   ajustes = c;
@@ -544,7 +561,7 @@ async function pintarAhora() {
   // Si el proyecto guardado ya no trae issues tuyos, se vuelve a "Todos".
   const vigente = c.proyecto === SIN_PROYECTO ? sinProyecto > 0 : proyectos.some((p) => p.id === c.proyecto);
   const proyecto = vigente ? c.proyecto : '';
-  const proyectoNombre = proyecto === SIN_PROYECTO ? 'sin proyecto' : proyectos.find((p) => p.id === proyecto)?.name || '';
+  const proyectoNombre = proyecto === SIN_PROYECTO ? t('sin proyecto') : proyectos.find((p) => p.id === proyecto)?.name || '';
   const ctx = { persona: datos.persona, equipos, proyecto, proyectoNombre };
   const g = clasificar(datos.issues, { equipos, proyecto });
   const consulta = (grupo) => botonesDeConsulta(grupo, g[grupo], ctx);
@@ -552,22 +569,23 @@ async function pintarAhora() {
   main.append(...[
     await seccionTraidos(datos.persona),
     selectorDeProyecto(proyectos, sinProyecto, proyecto),
-    el('h2', {}, 'Lo siguiente'),
-    g.siguiente ? tarjetaTuya(g.siguiente, true) : el('p', { class: 'vacio' }, proyecto ? 'Nada tuyo para hoy en este proyecto.' : 'Nada tuyo para hoy.'),
+    numeros(estadisticas(datos.issues, { equipos, proyecto })),
+    el('h2', {}, t('Lo siguiente')),
+    g.siguiente ? tarjetaTuya(g.siguiente, true) : el('p', { class: 'vacio' }, proyecto ? t('Nada tuyo para hoy en este proyecto.') : t('Nada tuyo para hoy.')),
     // La consulta de "Ahora" trae también "Lo siguiente": es el mismo grupo.
-    ...seccion('Ahora', g.ahora.slice(1), (i) => tarjetaTuya(i), 'Nada más.', consulta('ahora')),
-    ...seccion('Para agente', g.agente, tarjetaAgente, 'Nada listo para soltar.', consulta('agente')),
-    ...seccion('Esperan info', g.info, tarjetaAtorada, 'Nada esperando respuesta.', consulta('info')),
-    el('h2', {}, 'No es para hoy'),
-    plegado('Esperando a otros', g.esperando, 'review o block, más viejo primero', consulta('esperando')),
-    plegado('Después', g.despues, '👤 en Backlog', consulta('despues')),
-    plegado('Sin triage', g.sinTriage, 'corre /triage-dia', consulta('sinTriage')),
+    ...seccion(t('Ahora'), g.ahora.slice(1), (i) => tarjetaTuya(i), t('Nada más.'), consulta('ahora')),
+    ...seccion(t('Para agente'), g.agente, tarjetaAgente, t('Nada listo para soltar.'), consulta('agente')),
+    ...seccion(t('Esperan info'), g.info, tarjetaAtorada, t('Nada esperando respuesta.'), consulta('info')),
+    el('h2', {}, t('No es para hoy')),
+    plegado(t('Esperando a otros'), g.esperando, t('review o block, más viejo primero'), consulta('esperando')),
+    plegado(t('Después'), g.despues, t('👤 en Backlog'), consulta('despues')),
+    plegado(t('Sin triage'), g.sinTriage, t('corre /triage-dia'), consulta('sinTriage')),
     el('p', { class: 'meta' },
-      datos.persona ? `Tareas de ${datos.persona.name} (${datos.persona.email}) · ` : '',
-      `Revisado ${new Date(datos.at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} · ${datos.issues.length} abiertos · `,
+      datos.persona ? `${t('Tareas de {nombre}', { nombre: datos.persona.name })} (${datos.persona.email}) · ` : '',
+      `${t('Revisado {hora}', { hora: new Date(datos.at).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }) })} · ${t('{n} abiertos', { n: datos.issues.length })} · `,
       el('a', { href: 'https://gabrielneuman.com', target: '_blank' }, 'gabrielneuman.com')),
     datos.issues.length >= TOPE
-      ? el('p', { class: 'aviso' }, `Llegaste al tope de ${TOPE} issues: puede faltar alguno. Cierra o cancela los viejos en Linear.`)
+      ? el('p', { class: 'aviso' }, t('Llegaste al tope de {n} issues: puede faltar alguno. Cierra o cancela los viejos en Linear.', { n: TOPE }))
       : null,
   ].filter(Boolean));
 }
@@ -591,16 +609,16 @@ async function guardarTraidos(lista) {
 }
 
 async function seccionTraidos(persona) {
-  const campo = el('input', { type: 'text', placeholder: 'Pega un issue: CID-683 o su liga', autocomplete: 'off' });
+  const campo = el('input', { type: 'text', placeholder: t('Pega un issue: CID-683 o su liga'), autocomplete: 'off' });
   const caja = el('div', { class: 'traidos' });
   const form = el('form', { class: 'traer', onsubmit: async (e) => {
     e.preventDefault();
     const id = idDeIssue(campo.value);
-    if (!id) return avisar('Eso no parece un issue. Pega el ID (CID-683) o la liga de Linear.');
+    if (!id) return avisar(t('Eso no parece un issue. Pega el ID (CID-683) o la liga de Linear.'));
     await guardarTraidos([id, ...(await traidos()).filter((t) => t !== id)]);
     campo.value = '';
     await pintarAhora();
-  } }, campo, el('button', { type: 'submit' }, 'Traer'));
+  } }, campo, el('button', { type: 'submit' }, t('Traer')));
 
   const ids = await traidos();
   if (ids.length) {
@@ -611,14 +629,14 @@ async function seccionTraidos(persona) {
     const cerrados = todos.filter(cerrado).map((i) => i.identifier);
     if (cerrados.length) await guardarTraidos(ids.filter((id) => !cerrados.includes(id)));
     const issues = todos.filter((i) => !cerrado(i));
-    if (issues.length) caja.append(el('h2', {}, '📌 Traídos'));
+    if (issues.length) caja.append(el('h2', {}, t('📌 Traídos')));
     for (const i of issues) caja.append(tarjetaTraida(i, persona));
   }
   return el('div', {}, form, caja);
 }
 
 function tarjetaTraida(issue, persona) {
-  const quitar = el('button', { class: 'quitar', title: 'Quitar de aquí (no cambia nada en Linear)', onclick: async () => {
+  const quitar = el('button', { class: 'quitar', title: t('Quitar de aquí (no cambia nada en Linear)'), onclick: async () => {
     await guardarTraidos((await traidos()).filter((t) => t !== issue.identifier));
     await pintarAhora();
   } }, '✕');
@@ -626,11 +644,11 @@ function tarjetaTraida(issue, persona) {
   const tarjeta = tarjetaTuya(issue);
   tarjeta.querySelector('.fila').append(quitar);
   if (persona?.id && issue.assignee?.id !== persona.id) {
-    tarjeta.querySelector('.meta').append(` · de ${issue.assignee?.name || 'nadie'} · `,
+    tarjeta.querySelector('.meta').append(` · ${t('de {nombre}', { nombre: issue.assignee?.name || t('nadie') })} · `,
       el('button', { onclick: async () => {
         const c = await config();
-        await accion(() => actualizar(c.llave, issue.id, { assigneeId: persona.id }), `${issue.identifier} → ahora es tuyo`);
-      } }, 'Asignármelo'));
+        await accion(() => actualizar(c.llave, issue.id, { assigneeId: persona.id }), `${issue.identifier} → ${t('ahora es tuyo')}`);
+      } }, t('Asignármelo')));
   }
   return tarjeta;
 }
@@ -644,16 +662,16 @@ function contados(issues, equipos) {
 function selectorDeProyecto(proyectos, sinProyecto, actual) {
   if (!proyectos.length && !sinProyecto) return null;
   const opcion = (value, texto) => el('option', { value, selected: value === actual ? 'selected' : false }, texto);
-  return el('label', { class: 'proyecto' }, 'Proyecto',
+  return el('label', { class: 'proyecto' }, t('Proyecto'),
     el('select', {
       onchange: async (e) => {
         await guardarConfig({ proyecto: e.target.value });
         await pintarAhora();
       },
     },
-    opcion('', 'Todos'),
+    opcion('', t('Todos')),
     ...proyectos.map((p) => opcion(p.id, `${p.name} (${p.n})`)),
-    sinProyecto ? opcion(SIN_PROYECTO, `Sin proyecto (${sinProyecto})`) : null));
+    sinProyecto ? opcion(SIN_PROYECTO, `${t('Sin proyecto')} (${sinProyecto})`) : null));
 }
 
 /**
@@ -663,8 +681,8 @@ function selectorDeProyecto(proyectos, sinProyecto, actual) {
 async function pintarTaskAI() {
   const main = $('#taskai');
   const c = await config();
-  if (!c.llave) return main.replaceChildren(el('p', { class: 'vacio' }, 'Conecta Linear en Ajustes.'));
-  main.replaceChildren(el('p', { class: 'vacio' }, 'Revisando lo que hizo TaskAI…'));
+  if (!c.llave) return main.replaceChildren(el('p', { class: 'vacio' }, t('Conecta Linear en Ajustes.')));
+  main.replaceChildren(el('p', { class: 'vacio' }, t('Revisando lo que hizo TaskAI…')));
   try {
     const { enviadosTaskAI = {} } = await chrome.storage.local.get('enviadosTaskAI');
     const issues = await issuesTaskAI(c.llave, Object.keys(enviadosTaskAI));
@@ -674,11 +692,11 @@ async function pintarTaskAI() {
     const tuyos = filas.filter((f) => f.s.teToca);
     const resto = filas.filter((f) => !f.s.teToca);
     $('#n-taskai').textContent = tuyos.length ? `(${tuyos.length}!)` : '';
-    if (!filas.length) return main.replaceChildren(el('p', { class: 'vacio' }, 'Nada abierto de TaskAI. Lo que mandes con "Mandar a Claude" sale aquí.'));
+    if (!filas.length) return main.replaceChildren(el('p', { class: 'vacio' }, t('Nada abierto de TaskAI. Lo que mandes con "Mandar a Claude" sale aquí.')));
     main.replaceChildren(...[
-      el('h2', {}, `Te toca (${tuyos.length})`),
-      ...(tuyos.length ? tuyos.map(tarjetaTaskAI) : [el('p', { class: 'vacio' }, 'Nada esperándote.')]),
-      resto.length ? el('h2', {}, `En curso o sin acción (${resto.length})`) : null,
+      el('h2', {}, `${t('Te toca')} (${tuyos.length})`),
+      ...(tuyos.length ? tuyos.map(tarjetaTaskAI) : [el('p', { class: 'vacio' }, t('Nada esperándote.'))]),
+      resto.length ? el('h2', {}, `${t('En curso o sin acción')} (${resto.length})`) : null,
       ...resto.map(tarjetaTaskAI),
     ].filter(Boolean));
   } catch (err) {
@@ -692,25 +710,25 @@ function tarjetaTaskAI({ issue, s }) {
     el('div', { class: 'fila' },
       el('span', { class: 'id' }, issue.identifier),
       el('span', { class: 'titulo' }, el('a', { href: issue.url, target: '_blank' }, issue.title))),
-    el('div', { class: 'meta' }, `${issue.state?.name || ''}${s.cuando ? ` · ${new Date(s.cuando).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}` : ''}`),
-    el('div', { class: 'listo' }, `${s.emoji} ${s.resultado}`),
-    s.teToca ? el('div', { class: 'te-toca' }, '👉 ', el('b', {}, 'Te toca: '), s.teToca) : null,
+    el('div', { class: 'meta' }, `${issue.state?.name || ''}${s.cuando ? ` · ${new Date(s.cuando).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' })}` : ''}`),
+    el('div', { class: 'listo' }, `${s.emoji} ${t(s.resultado)}`),
+    s.teToca ? el('div', { class: 'te-toca' }, '👉 ', el('b', {}, t('Te toca: ')), t(s.teToca)) : null,
     el('div', { class: 'acciones' },
-      pr ? el('a', { class: 'boton primario', href: pr, target: '_blank' }, 'Ver PR') : null,
-      el('a', { class: 'boton', href: issue.url, target: '_blank' }, 'Abrir issue'),
-      el('button', { onclick: () => confirmarDone(issue, pintarTaskAI) }, 'Pasar a Done')));
+      pr ? el('a', { class: 'boton primario', href: pr, target: '_blank' }, t('Ver PR')) : null,
+      el('a', { class: 'boton', href: issue.url, target: '_blank' }, t('Abrir issue')),
+      el('button', { onclick: () => confirmarDone(issue, pintarTaskAI) }, t('Pasar a Done'))));
 }
 
-const REPETIR = { no: '', diario: ' · diario', laborables: ' · L a V' };
+const REPETIR = () => ({ no: '', diario: ` · ${t('diario')}`, laborables: ` · ${t('L a V')}` });
 
 function cuando(at) {
   const d = new Date(at);
   const hoy = new Date();
   const manana = new Date(); manana.setDate(hoy.getDate() + 1);
-  const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-  if (d.toDateString() === hoy.toDateString()) return `Hoy ${hora}`;
-  if (d.toDateString() === manana.toDateString()) return `Mañana ${hora}`;
-  return `${d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })} ${hora}`;
+  const hora = d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === hoy.toDateString()) return t('Hoy {hora}', { hora });
+  if (d.toDateString() === manana.toDateString()) return t('Mañana {hora}', { hora });
+  return `${d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })} ${hora}`;
 }
 
 async function pintarRecordatorios() {
@@ -720,17 +738,17 @@ async function pintarRecordatorios() {
   $('#n-rec').textContent = lista.length ? `(${vencidos ? vencidos + '!' : lista.length})` : '';
   main.replaceChildren();
   if (!lista.length) {
-    main.append(el('p', { class: 'vacio' }, 'Sin recordatorios. Escribe arriba: "10am revisar propuesta".'));
+    main.append(el('p', { class: 'vacio' }, t('Sin recordatorios. Escribe arriba: "10am revisar propuesta".')));
     return;
   }
   for (const r of lista) {
     const repite = r.repetir && r.repetir !== 'no';
     main.append(el('div', { class: `item ${r.disparado ? 'vencido' : ''}` },
       el('div', { class: 'fila' },
-        el('span', { class: 'id' }, r.disparado ? 'Ya sonó' : cuando(r.at) + (REPETIR[r.repetir] || '')),
+        el('span', { class: 'id' }, r.disparado ? t('Ya sonó') : cuando(r.at) + (REPETIR()[r.repetir] || '')),
         el('span', { class: 'titulo' }, r.issueUrl ? el('a', { href: r.issueUrl, target: '_blank' }, r.texto) : r.texto)),
       el('div', { class: 'acciones' },
-        el('button', { onclick: () => borrar(r.id) }, repite ? 'Borrar' : 'Hecho'),
+        el('button', { onclick: () => borrar(r.id) }, repite ? t('Borrar') : t('Hecho')),
         r.disparado ? el('button', { onclick: () => posponer(r.id) }, '+10 min') : null)));
   }
 }
@@ -760,12 +778,12 @@ $('#rapido').addEventListener('submit', async (e) => {
   let at = null;
   if (!hhmm) {
     const p = parseRapido(texto);
-    if (!p) return avisar('Pon una hora: "10am revisar propuesta", "a las 16:30 llamar" o "en 30 min …".');
+    if (!p) return avisar(t('Pon una hora: "10am revisar propuesta", "a las 16:30 llamar" o "en 30 min …".'));
     texto = p.texto;
     hhmm = p.hhmm || null;
     at = p.at || null;
   }
-  if (!texto) return avisar('¿Qué te recuerdo?');
+  if (!texto) return avisar(t('¿Qué te recuerdo?'));
   if (hhmm) at = siguienteHora(hhmm, repetir);
   const lista = await recordatorios();
   lista.push({
@@ -775,7 +793,7 @@ $('#rapido').addEventListener('submit', async (e) => {
   await guardarRecordatorios(lista);
   await chrome.runtime.sendMessage({ tipo: 'recordatorios' });
   campo.value = ''; $('#rapido-hora').value = ''; delete campo.dataset.issueId; delete campo.dataset.issueUrl;
-  avisar(`Te aviso ${cuando(at).toLowerCase()}`.replace(/\.?$/, '.'), true);
+  avisar(t('Te aviso {cuando}', { cuando: cuando(at).toLowerCase() }).replace(/\.?$/, '.'), true);
   await pintarRecordatorios();
 });
 
@@ -790,7 +808,7 @@ for (const b of document.querySelectorAll('[data-tab]')) {
 }
 $('#ajustes').addEventListener('click', () => chrome.runtime.openOptionsPage());
 $('#refrescar').addEventListener('click', async () => {
-  avisar('Revisando Linear…', true);
+  avisar(t('Revisando Linear…'), true);
   await chrome.runtime.sendMessage({ tipo: 'refrescar' });
   avisar('');
   await pintar();
@@ -800,6 +818,8 @@ async function pintar() {
   await Promise.all([pintarAhora(), pintarRecordatorios()]);
 }
 
+await usarIdioma();
+traducirDom();
 pintar();
 // Si el caché tiene más de 2 min, pide uno nuevo y vuelve a pintar.
 cache().then((d) => {

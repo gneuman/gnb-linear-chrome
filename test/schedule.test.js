@@ -41,3 +41,14 @@ test('parse: sin hora devuelve null', () => {
   assert.equal(parseRapido('10 cosas que hacer'), null);
   assert.equal(parseRapido('25:00 algo'), null);
 });
+
+test('parse en inglés: 10am, at 4:30pm, at 9, remind me to, in 30 min, in 2 hours', () => {
+  const ahora = new Date(2026, 10, 5, 8, 0, 0);
+  assert.deepEqual(parseRapido('10am review proposal'), { texto: 'review proposal', hhmm: '10:00' });
+  assert.deepEqual(parseRapido('at 4:30pm call David'), { texto: 'call David', hhmm: '16:30' });
+  assert.deepEqual(parseRapido('remind me to at 9 pay rent'), { texto: 'pay rent', hhmm: '09:00' });
+  assert.deepEqual(parseRapido('at 9 pay rent'), { texto: 'pay rent', hhmm: '09:00' });
+  assert.deepEqual(parseRapido('in 30 min send email', ahora), { texto: 'send email', at: ahora.getTime() + 30 * 60000 });
+  assert.deepEqual(parseRapido('in 2 hours review PR', ahora), { texto: 'review PR', at: ahora.getTime() + 120 * 60000 });
+  assert.equal(parseRapido('10 things to do'), null);
+});

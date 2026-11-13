@@ -12,7 +12,7 @@ npm test --silent
 mkdir -p dist
 rm -f "$salida"
 zip -qr "$salida" manifest.json background.js popup.html popup.css popup.js \
-  options.html options.js lib icons -x '*.DS_Store'
+  options.html options.js lib icons _locales -x '*.DS_Store'
 
 echo "Listo: $salida ($(du -h "$salida" | cut -f1))"
 echo "Cada vez que subas uno nuevo, sube antes \"version\" en manifest.json: la tienda rechaza una versión repetida."

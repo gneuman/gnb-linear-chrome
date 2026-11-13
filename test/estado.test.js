@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nuevos, clasificar, labelsParaAgente, riesgo, resumen, talla, LABEL, RIESGO } from '../lib/estado.js';
+import { nuevos, clasificar, labelsParaAgente, riesgo, resumen, talla, estadisticas, LABEL, RIESGO } from '../lib/estado.js';
 
 const lab = (id, name = id) => ({ id, name });
 const IDS = { [LABEL.agente]: 'id-agente', [RIESGO.verde]: 'id-verde', [RIESGO.amarillo]: 'id-amarillo', [RIESGO.rojo]: 'id-rojo' };
@@ -110,4 +110,24 @@ test('riesgo: el label de color dentro del grupo riesgo, como está en Linear', 
   assert.equal(riesgo(conGrupo), 'verde');
   assert.equal(riesgo(issue('Z2', { labels: { nodes: [{ id: 'r', name: 'Rojo' }] } })), 'rojo', 'el color solo, sin grupo');
   assert.equal(riesgo(issue('Z3', { labels: { nodes: [{ id: 'x', name: 'verde-limón', parent: { name: 'marca' } }] } })), null);
+});
+
+test('resumen saca también el "Done when" en inglés', () => {
+  const r = resumen('Fix the checkout.\nDone when: the payment creates the row');
+  assert.equal(r.listoCuando, 'the payment creates the row');
+  assert.equal(r.texto, 'Fix the checkout.');
+});
+
+test('estadisticas: abiertos, en curso, urgentes, vencidos, quietos y para agente', () => {
+  const ahora = new Date(2026, 10, 13, 9, 0, 0).getTime();
+  const hace = (d) => new Date(ahora - d * 864e5).toISOString();
+  const i = (o) => ({ id: Math.random(), team: { key: 'OP' }, labels: { nodes: (o.labels || []).map((name) => ({ name })) }, updatedAt: hace(o.dias ?? 0), state: { type: o.tipo || 'unstarted', name: o.estado || 'Todo' }, priority: o.p ?? 3, dueDate: o.vence || null });
+  const issues = [
+    i({ tipo: 'started', estado: 'In Progress', p: 1, vence: '2026-11-12' }),
+    i({ tipo: 'started', estado: 'In Review', dias: 5 }),
+    i({ labels: [LABEL.agente] }),
+    i({ labels: [LABEL.humano], vence: '2026-11-13' }),
+    i({ tipo: 'completed', estado: 'Done', p: 1 }),
+  ];
+  assert.deepEqual(estadisticas(issues, { ahora }), { abiertos: 4, enCurso: 1, urgentes: 1, vencidos: 1, quietos: 1, agente: 1 });
 });

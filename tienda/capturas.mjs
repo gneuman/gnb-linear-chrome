@@ -1,5 +1,5 @@
 // Capturas para la Chrome Web Store con datos de ejemplo (nada real de Linear).
-// Uso: npm run capturas  →  dist/tienda/*.png
+// Uso: npm run capturas  →  dist/tienda/*.png  ·  en inglés: npm run capturas -- en  →  dist/tienda/en/*.png
 // Pinta el popup de verdad con un `chrome` falso, y lo monta en lienzos del tamaño que pide la tienda.
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
@@ -11,7 +11,10 @@ import { fileURLToPath } from 'node:url';
 const { chromium } = createRequire(import.meta.url)('playwright');
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
-const salida = join(raiz, 'dist', 'tienda');
+const EN = process.argv[2] === 'en';
+// En inglés, los títulos de ejemplo y los textos del lienzo también van en inglés.
+const tr = (es, en) => (EN ? en : es);
+const salida = join(raiz, 'dist', 'tienda', ...(EN ? ['en'] : []));
 const TIPOS = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png' };
 
 const servidor = createServer(async (req, res) => {
@@ -37,26 +40,26 @@ const issue = (titulo, o = {}) => ({
 });
 
 const issues = [
-  issue('Mandar la propuesta de renovación anual', { estado: 'In Progress', tipo: 'started', p: 2, vence: '2026-11-07',
-    desc: 'Ajustar precios con el descuento acordado y mandar el PDF.\nListo cuando: el cliente tiene el PDF en su correo.' }),
-  issue('Revisar la página de ventas del taller', { labels: [L.humano], p: 2 }),
-  issue('Preparar la agenda de la llamada del jueves', { labels: [L.humano], p: 3, vence: '2026-11-06' }),
-  issue('Corregir el enlace roto del newsletter', { labels: [L.agente, L.brief], riesgo: 'verde', p: 3 }),
-  issue('Agregar paginación al tablero de leads', { labels: [L.agente, L.brief], riesgo: 'amarillo', p: 2 }),
-  issue('Conectar el cobro recurrente', { labels: [L.agente, L.brief], riesgo: 'rojo', p: 1 }),
-  issue('Confirmar el dominio de envío', { labels: [L.info], dias: 4 }),
-  issue('Validar textos con el cliente', { estado: 'In Review', tipo: 'started', dias: 2 }),
-  issue('Ideas para el siguiente episodio', { labels: [L.humano], tipo: 'backlog', estado: 'Backlog' }),
-  issue('Revisar costos del proveedor'),
+  issue(tr('Mandar la propuesta de renovación anual', 'Send the annual renewal proposal'), { estado: 'In Progress', tipo: 'started', p: 2, vence: '2026-11-07',
+    desc: tr('Ajustar precios con el descuento acordado y mandar el PDF.\nListo cuando: el cliente tiene el PDF en su correo.', 'Adjust prices with the agreed discount and send the PDF.\nDone when: the client has the PDF in their inbox.') }),
+  issue(tr('Revisar la página de ventas del taller', 'Review the workshop sales page'), { labels: [L.humano], p: 2 }),
+  issue(tr('Preparar la agenda de la llamada del jueves', "Prepare Thursday's call agenda"), { labels: [L.humano], p: 3, vence: '2026-11-06' }),
+  issue(tr('Corregir el enlace roto del newsletter', 'Fix the broken newsletter link'), { labels: [L.agente, L.brief], riesgo: 'verde', p: 3 }),
+  issue(tr('Agregar paginación al tablero de leads', 'Add pagination to the leads board'), { labels: [L.agente, L.brief], riesgo: 'amarillo', p: 2 }),
+  issue(tr('Conectar el cobro recurrente', 'Connect recurring billing'), { labels: [L.agente, L.brief], riesgo: 'rojo', p: 1 }),
+  issue(tr('Confirmar el dominio de envío', 'Confirm the sending domain'), { labels: [L.info], dias: 4 }),
+  issue(tr('Validar textos con el cliente', 'Approve copy with the client'), { estado: 'In Review', tipo: 'started', dias: 2 }),
+  issue(tr('Ideas para el siguiente episodio', 'Ideas for the next episode'), { labels: [L.humano], tipo: 'backlog', estado: 'Backlog' }),
+  issue(tr('Revisar costos del proveedor', 'Review supplier costs')),
 ];
 
 const datos = {
-  config: { llave: 'demo', horaResumen: '09:00', equipos: '', correo: '', avisarNuevos: true },
-  cache: { issues, ids: issues.map((i) => i.id), persona: { name: 'Ana López', email: 'ana@ejemplo.com' }, at: Date.now() },
+  config: { idioma: EN ? 'en' : 'es', llave: 'demo', horaResumen: '09:00', equipos: '', correo: '', avisarNuevos: true },
+  cache: { issues, ids: issues.map((i) => i.id), persona: EN ? { name: 'Ann Lee', email: 'ann@example.com' } : { name: 'Ana López', email: 'ana@ejemplo.com' }, at: Date.now() },
   recordatorios: [
-    { id: 'r1', texto: 'Llamar a contabilidad', at: Date.now() - 6e4, disparado: true, repetir: 'no' },
-    { id: 'r2', texto: 'Revisar pendientes del día', at: Date.now() + 2 * 36e5, hhmm: '10:00', disparado: false, repetir: 'laborables' },
-    { id: 'r3', texto: 'OP-101 Revisar la página de ventas del taller', at: Date.now() + 5 * 36e5, disparado: false, repetir: 'no', issueUrl: 'https://linear.app/' },
+    { id: 'r1', texto: tr('Llamar a contabilidad', 'Call accounting'), at: Date.now() - 6e4, disparado: true, repetir: 'no' },
+    { id: 'r2', texto: tr('Revisar pendientes del día', "Review today's to-dos"), at: Date.now() + 2 * 36e5, hhmm: '10:00', disparado: false, repetir: 'laborables' },
+    { id: 'r3', texto: tr('OP-101 Revisar la página de ventas del taller', 'OP-101 Review the workshop sales page'), at: Date.now() + 5 * 36e5, disparado: false, repetir: 'no', issueUrl: 'https://linear.app/' },
   ],
 };
 
@@ -69,6 +72,7 @@ function chromeFalso(d) {
     runtime: { sendMessage: async () => {}, openOptionsPage: () => {} },
     tabs: { create: () => {} },
     identity: { getProfileUserInfo: async () => ({ email: '' }) },
+    i18n: { getUILanguage: () => d.config.idioma },
   };
 }
 
@@ -104,20 +108,23 @@ async function guardar(nombre, opciones) {
   await p.setContent(lienzo(opciones));
   await p.screenshot({ path: join(salida, nombre) });
   await p.close();
-  console.log(`dist/tienda/${nombre}`);
+  console.log(join(salida, nombre).replace(`${raiz}/`, ""));
 }
 
 await mkdir(salida, { recursive: true });
 const ahora = await capturaPopup();
 const rec = await capturaPopup('recordatorios');
 await guardar('captura-1-que-sigue.png', { w: 1280, h: 800, img: ahora,
-  titulo: 'Lo siguiente, sin abrir Linear', texto: 'Tu issue más urgente arriba, lo que va a un agente con su semáforo de riesgo y lo que está atorado.' });
+  titulo: tr('Lo siguiente, sin abrir Linear', 'Next up, without opening Linear'),
+  texto: tr('Tu issue más urgente arriba, lo que va a un agente con su semáforo de riesgo y lo que está atorado.', 'Your most urgent issue on top, what an agent can take with its risk color, and what is stuck.') });
 await guardar('captura-2-recordatorios.png', { w: 1280, h: 800, img: rec,
-  titulo: 'Recordatorios escritos como hablas', texto: '“10am revisar propuesta”, “en 30 min llamar”. Una vez, diario o de lunes a viernes.' });
+  titulo: tr('Recordatorios escritos como hablas', 'Reminders written the way you talk'),
+  texto: tr('“10am revisar propuesta”, “en 30 min llamar”. Una vez, diario o de lunes a viernes.', '“10am review proposal”, “in 30 min call”. Once, daily or Monday to Friday.') });
 await guardar('marquesina-1400x560.png', { w: 1400, h: 560, img: ahora, escala: 0.86,
-  titulo: 'Tu día en Linear, en un clic', texto: 'Qué sigue, qué va a un agente con su semáforo de riesgo y qué está atorado. Gratis y de código abierto.' });
+  titulo: tr('Tu día en Linear, en un clic', 'Your Linear day, in one click'),
+  texto: tr('Qué sigue, qué va a un agente con su semáforo de riesgo y qué está atorado. Gratis y de código abierto.', 'What is next, what an agent can take with its risk color, and what is stuck. Free and open source.') });
 await guardar('mosaico-440x280.png', { w: 440, h: 280,
-  titulo: 'Tu día en Linear, en un clic', texto: 'Qué sigue, qué va a un agente y qué está atorado.' });
+  titulo: tr('Tu día en Linear, en un clic', 'Your Linear day, in one click'), texto: tr('Qué sigue, qué va a un agente y qué está atorado.', 'What is next, what an agent can take and what is stuck.') });
 
 await navegador.close();
 servidor.close();

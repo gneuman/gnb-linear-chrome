@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Ajustes · ¿Qué sigue?</title>
+  <title>¿Qué sigue?</title>
   <link rel="stylesheet" href="popup.css">
   <style>
     body { width: auto; max-width: 560px; max-height: none; margin: 24px auto; padding: 0 16px; }
@@ -13,55 +13,62 @@
   </style>
 </head>
 <body>
-  <h1>Ajustes</h1>
+  <h1 data-i18n>Ajustes</h1>
   <form id="f">
-    <label for="llave">API key personal de Linear</label>
+    <label for="idioma" data-i18n>Idioma</label>
+    <select id="idioma" style="width:100%; border:1px solid var(--linea); background:var(--bg); border-radius:6px; padding:6px 8px">
+      <option value="" data-i18n>El de Chrome</option>
+      <option value="es">Español</option>
+      <option value="en">English</option>
+    </select>
+
+    <label for="llave" data-i18n>API key personal de Linear</label>
     <input id="llave" type="password" autocomplete="off" placeholder="lin_api_…">
-    <small>Linear → Settings → Security &amp; access → Personal API keys. Se guarda solo en este Chrome.</small>
+    <small data-i18n>Linear → Settings → Security &amp; access → Personal API keys. Se guarda solo en este Chrome.</small>
 
-    <label for="correo">Correo de la persona</label>
+    <label for="correo" data-i18n>Correo de la persona</label>
     <input id="correo" type="email" autocomplete="off">
-    <small id="correo-ayuda">Solo se muestran las tareas asignadas a este correo en Linear. Vacío = el correo de tu perfil de Chrome; si ese no está en Linear, el dueño de la API key.</small>
+    <small id="correo-ayuda" data-i18n>Solo se muestran las tareas asignadas a este correo en Linear. Vacío = el correo de tu perfil de Chrome; si ese no está en Linear, el dueño de la API key.</small>
 
-    <label><input id="avisar" type="checkbox" style="width:auto"> Avisar en Chrome cuando me asignen un issue nuevo</label>
+    <label><input id="avisar" type="checkbox" style="width:auto"> <span data-i18n>Avisar en Chrome cuando me asignen un issue nuevo</span></label>
 
-    <label for="hora">Hora del resumen diario</label>
+    <label for="hora" data-i18n>Hora del resumen diario</label>
     <input id="hora" type="time">
 
-    <label for="equipos">Equipos (claves separadas por coma)</label>
+    <label for="equipos" data-i18n>Equipos (claves separadas por coma)</label>
     <input id="equipos" type="text" placeholder="OP, INT, GRO — vacío = todos">
 
-    <label for="agente">Agente que hace las tareas</label>
+    <label for="agente" data-i18n>Agente que hace las tareas</label>
     <select id="agente" style="width:100%; border:1px solid var(--linea); background:var(--bg); border-radius:6px; padding:6px 8px">
-      <option value="">Ninguno: solo poner 🤖</option>
+      <option value="" data-i18n>Ninguno: solo poner 🤖</option>
       <option value="Linear">Linear</option>
     </select>
-    <small>"Mover a agente" le delega el issue. Para que lo programe Claude: en Linear, Settings → AI &amp; agents → Cloud coding agent → modelo Claude.</small>
+    <small data-i18n>"Mover a agente" le delega el issue. Para que lo programe Claude: en Linear, Settings → AI &amp; agents → Cloud coding agent → modelo Claude.</small>
 
-    <h2>Mandar a Claude (opcional)</h2>
-    <small>Con tu propia rutina de Claude, el botón "Mandar a Claude" le pasa el issue y Claude te deja el PR a revisión. Sin token el botón no sale. Cómo crear la rutina: <a href="https://github.com/gneuman/gnb-linear-chrome/blob/main/taskai/README.md" target="_blank">guía</a>.</small>
+    <h2 data-i18n>Mandar a Claude (opcional)</h2>
+    <small data-i18n>Con tu propia rutina de Claude, el botón "Mandar a Claude" le pasa el issue y Claude te deja el PR a revisión. Sin token el botón no sale. Cómo crear la rutina: <a href="https://github.com/gneuman/gnb-linear-chrome/blob/main/taskai/README.md" target="_blank">guía</a>.</small>
 
-    <label for="token-taskai">Token de la rutina</label>
+    <label for="token-taskai" data-i18n>Token de la rutina</label>
     <input id="token-taskai" type="password" autocomplete="off" placeholder="sk-ant-…">
-    <small id="token-ayuda">Se genera en <a href="https://claude.ai/code/routines" target="_blank">claude.ai/code/routines</a> (tu rutina → disparo por API). Se guarda solo en este Chrome y no se vuelve a enseñar: vacío = se queda el que ya estaba.</small>
-    <label><input id="borrar-token" type="checkbox" style="width:auto"> Borrar el token guardado</label>
+    <small id="token-ayuda" data-i18n>Se genera en <a href="https://claude.ai/code/routines" target="_blank">claude.ai/code/routines</a> (tu rutina → disparo por API). Se guarda solo en este Chrome y no se vuelve a enseñar: vacío = se queda el que ya estaba.</small>
+    <label><input id="borrar-token" type="checkbox" style="width:auto"> <span data-i18n>Borrar el token guardado</span></label>
 
-    <label for="rutina-taskai">ID de la rutina</label>
+    <label for="rutina-taskai" data-i18n>ID de la rutina</label>
     <input id="rutina-taskai" type="text" autocomplete="off" placeholder="trig_…">
 
-    <label for="dueno">Dueño de tus repos en GitHub</label>
+    <label for="dueno" data-i18n>Dueño de tus repos en GitHub</label>
     <input id="dueno" type="text" autocomplete="off" placeholder="mi-empresa">
-    <small>Para encontrar el repo de un issue cuando lo escribes como <code>mi-empresa/repo</code> en la descripción. Lo que ligas en Linear (PR, rama o link del proyecto) se detecta sin esto.</small>
+    <small data-i18n>Para encontrar el repo de un issue cuando lo escribes como <code>mi-empresa/repo</code> en la descripción. Lo que ligas en Linear (PR, rama o link del proyecto) se detecta sin esto.</small>
 
-    <p><button class="primario" type="submit">Guardar</button> <span id="estado" class="aviso ok"></span></p>
+    <p><button class="primario" type="submit" data-i18n>Guardar</button> <span id="estado" class="aviso ok"></span></p>
   </form>
 
-  <h2>Preparar mi Linear</h2>
-  <p><small>La extensión ordena tus issues con estas etiquetas: 🔍 necesita-triage, 👤 listo-para-humano, 🤖 listo-para-agente, ❓ necesita-info y el grupo <b>riesgo</b> (verde, amarillo, rojo). Este botón crea las que te falten; las que ya tienes no se tocan.</small></p>
-  <p><button id="preparar" type="button">Preparar mi Linear</button> <span id="estado-preparar" class="aviso ok"></span></p>
+  <h2 data-i18n>Preparar mi Linear</h2>
+  <p><small data-i18n>La extensión ordena tus issues con estas etiquetas: 🔍 necesita-triage, 👤 listo-para-humano, 🤖 listo-para-agente, ❓ necesita-info y el grupo <b>riesgo</b> (verde, amarillo, rojo). Este botón crea las que te falten; las que ya tienes no se tocan.</small></p>
+  <p><button id="preparar" type="button" data-i18n>Preparar mi Linear</button> <span id="estado-preparar" class="aviso ok"></span></p>
 
-  <h2>¿Te sirve?</h2>
-  <p><small>¿Qué sigue? es gratis y de código abierto, hecha por <a href="https://gabrielneuman.com" target="_blank">Gabriel Neuman</a>. <a href="https://github.com/gneuman/gnb-linear-chrome" target="_blank">Código en GitHub</a> · <a id="donar" href="https://github.com/sponsors/gneuman" target="_blank">❤️ Donar</a></small></p>
+  <h2 data-i18n>¿Te sirve?</h2>
+  <p><small data-i18n>¿Qué sigue? es gratis y de código abierto, hecha por <a href="https://gabrielneuman.com" target="_blank">Gabriel Neuman</a>. <a href="https://github.com/gneuman/gnb-linear-chrome" target="_blank">Código en GitHub</a> · <a id="donar" href="https://github.com/sponsors/gneuman" target="_blank">❤️ Donar</a></small></p>
   <script type="module" src="options.js"></script>
 </body>
 </html>
