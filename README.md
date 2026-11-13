@@ -8,8 +8,13 @@ Gratis y de código abierto (MIT). Si te sirve: [❤️ Donar](https://github.co
 
 > **English:** a Chrome extension that turns your Linear into a "what's next" list.
 > Change status, size and assignee, comment, delegate, and send an issue to your own
-> Claude Code routine, which opens the PR for you to review. UI in Spanish (for now).
-> Setup: install, paste a Linear personal API key, click *Preparar mi Linear*.
+> Claude Code routine, which opens the PR for you to review. The interface is in
+> English or Spanish, following Chrome's language (or pick one in Settings).
+> Setup: [INSTALL.md](INSTALL.md).
+
+## Idioma
+
+Español o inglés. Por omisión sigue el idioma de Chrome (español si empieza con `es`, inglés si no); se cambia en **Ajustes → Idioma**. Los textos viven en `lib/i18n.js` (la llave es el texto en español) y el inglés en `lib/i18n-en.js`. Un texto nuevo sin su inglés hace fallar `npm test`. El nombre y la descripción de la tienda van en `_locales/`. Los nombres de las etiquetas de Linear no se traducen: la extensión las busca por nombre.
 
 ## Cómo ordena tus issues
 
@@ -56,7 +61,7 @@ Los recordatorios suenan con notificación de Chrome con **Posponer 10 min** y
 
 ## Instalar
 
-Para el equipo: [INSTALAR.md](INSTALAR.md). Para publicar en la Chrome Web Store: [tienda/README.md](tienda/README.md).
+Para el equipo: [INSTALAR.md](INSTALAR.md) (en inglés: [INSTALL.md](INSTALL.md)). Para publicar en la Chrome Web Store: [tienda/README.md](tienda/README.md).
 
 ### Modo desarrollador
 

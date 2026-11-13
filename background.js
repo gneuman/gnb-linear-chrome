@@ -4,6 +4,7 @@ import { resolverPersona, issuesDe } from './lib/linear.js';
 import { clasificar, nuevos } from './lib/estado.js';
 import { siguienteHora } from './lib/schedule.js';
 import { config, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
+import { t, usarIdioma } from './lib/i18n.js';
 
 const REVISAR = 'revisar';
 const RESUMEN = 'resumen';
@@ -50,9 +51,10 @@ async function correoDeChrome() {
 }
 
 async function refrescar() {
+  await usarIdioma();
   const c = await config();
   if (!c.llave) {
-    await chrome.storage.local.set({ cache: { error: 'Falta la API key de Linear. Ábrela en Ajustes.', at: Date.now() } });
+    await chrome.storage.local.set({ cache: { error: t('Falta la API key de Linear. Ábrela en Ajustes.'), at: Date.now() } });
     await pintarNumero();
     return null;
   }
@@ -88,7 +90,7 @@ function avisarNuevos(lista) {
   if (lista.length > 3) {
     chrome.notifications.create(NUEVO + 'varios', {
       type: 'basic', iconUrl: ICONO,
-      title: `${lista.length} issues nuevos en Linear`,
+      title: t('{n} issues nuevos en Linear', { n: lista.length }),
       message: lista.slice(0, 3).map((i) => `${i.identifier} ${i.title}`).join('\n') + '\n…',
     });
     return;
@@ -96,8 +98,8 @@ function avisarNuevos(lista) {
   for (const i of lista) {
     chrome.notifications.create(NUEVO + i.id, {
       type: 'basic', iconUrl: ICONO,
-      title: `Nuevo: ${i.identifier}`,
-      message: `${i.title}${i.priority === 1 ? ' · Urgente' : ''}`,
+      title: t('Nuevo: {id}', { id: i.identifier }),
+      message: `${i.title}${i.priority === 1 ? ` · ${t('Urgente')}` : ''}`,
       contextMessage: [i.team?.key, i.state?.name].filter(Boolean).join(' · '),
     });
   }
@@ -124,16 +126,17 @@ async function mandarResumen() {
   const c = await config();
   chrome.alarms.create(RESUMEN, { when: siguienteHora(c.horaResumen, 'diario') });
   if (!cache?.issues) return;
+  await usarIdioma();
   const g = clasificar(cache.issues, { equipos: equiposDe(c) });
   const hoy = (await recordatorios()).filter((r) => !r.disparado && r.at < Date.now() + 18 * 3600 * 1000).length;
   chrome.notifications.create(RESUMEN, {
     type: 'basic',
     iconUrl: ICONO,
-    title: 'Hoy',
+    title: t('Hoy'),
     message:
-      `${g.ahora.length} para hoy, ${g.agente.length} para agente, ${g.info.length} esperando info` +
-      (hoy ? `, ${hoy} recordatorios` : '') +
-      (g.siguiente ? `\nSigue: ${g.siguiente.identifier} ${g.siguiente.title}` : ''),
+      t('{ahora} para hoy, {agente} para agente, {info} esperando info', { ahora: g.ahora.length, agente: g.agente.length, info: g.info.length }) +
+      (hoy ? t(', {n} recordatorios', { n: hoy }) : '') +
+      (g.siguiente ? `\n${t('Sigue: {id} {titulo}', { id: g.siguiente.identifier, titulo: g.siguiente.title })}` : ''),
   });
 }
 
@@ -141,13 +144,14 @@ async function dispararRecordatorio(id) {
   const lista = await recordatorios();
   const r = lista.find((x) => x.id === id);
   if (!r) return;
+  await usarIdioma();
   chrome.notifications.create(REC + r.id, {
     type: 'basic',
     iconUrl: ICONO,
-    title: r.issueId ? `Recordatorio · ${r.issueId}` : 'Recordatorio',
+    title: r.issueId ? `${t('Recordatorio')} · ${r.issueId}` : t('Recordatorio'),
     message: r.texto,
     requireInteraction: true,
-    buttons: [{ title: 'Posponer 10 min' }, { title: 'Hecho' }],
+    buttons: [{ title: t('Posponer 10 min') }, { title: t('Hecho') }],
   });
   if (r.repetir && r.repetir !== 'no' && r.hhmm) {
     r.at = siguienteHora(r.hhmm, r.repetir);

@@ -10,17 +10,17 @@
     <input id="rapido-texto" type="text" placeholder="10am revisar propuesta · en 30 min llamar" autocomplete="off">
     <input id="rapido-hora" type="time" title="Hora (opcional si la escribes en el texto)">
     <select id="rapido-repetir" title="Repetir">
-      <option value="no">Una vez</option>
-      <option value="diario">Diario</option>
-      <option value="laborables">L a V</option>
+      <option value="no" data-i18n>Una vez</option>
+      <option value="diario" data-i18n>Diario</option>
+      <option value="laborables" data-i18n>L a V</option>
     </select>
-    <button type="submit">Recordar</button>
+    <button type="submit" data-i18n>Recordar</button>
   </form>
   <p id="aviso" class="aviso" hidden></p>
 
   <nav class="tabs">
-    <button data-tab="ahora" class="activa">Ahora</button>
-    <button data-tab="recordatorios">Recordatorios <span id="n-rec"></span></button>
+    <button data-tab="ahora" class="activa" data-i18n>Ahora</button>
+    <button data-tab="recordatorios"><span data-i18n>Recordatorios</span> <span id="n-rec"></span></button>
     <button data-tab="taskai">TaskAI <span id="n-taskai"></span></button>
     <span class="spacer"></span>
     <button id="refrescar" title="Revisar Linear ya">↻</button>

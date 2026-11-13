@@ -50,6 +50,37 @@ Hecha por Gabriel Neuman · gabrielneuman.com
 
 **URL de asistencia (Support URL):** `https://github.com/gneuman/gnb-linear-chrome/issues` (cuando el repo sea público) o `https://gabrielneuman.com`.
 
+### Ficha en inglés (agregar idioma: English)
+
+En la misma pestaña, **Agregar idioma → English**. El nombre y el resumen salen solos de `_locales/en/messages.json`.
+
+**Descripción:**
+
+```
+Your Linear day without opening Linear.
+
+One click shows you:
+• Next up: your most urgent issue, with a two-line summary and its "Done when".
+• Now: what you have in progress and what is ready for you. "Start" moves it to In Progress and opens it.
+• For an agent: what an AI agent can take, with its risk color and who merges.
+• Waiting on info: what is stuck, with how many days it has not moved.
+• What is not for today, folded and counted.
+
+From each card, without opening Linear: change status, priority, size and assignee, comment, delegate to a teammate, and move it to Done once its PR merged. Paste any issue (its ID or link) to pin it on top with every button.
+
+Send to Claude (optional): with your own Claude Code routine, one click passes it the issue and Claude leaves you the PR to review, without merging. The TaskAI tab tells you what is your turn among what you sent.
+
+Reminders written the way you talk: "10am review proposal", "at 4:30pm call", "in 30 min send email". Once, daily or Monday to Friday, with Snooze 10 min.
+
+How it connects: paste your Linear personal API key in Settings. It is stored only in your Chrome and the extension talks straight to Linear. No server in between, nothing stored outside your computer. "Set up my Linear" creates the labels it uses.
+
+Interface in English or Spanish, following Chrome's language.
+Free and open source (MIT): github.com/gneuman/gnb-linear-chrome
+Made by Gabriel Neuman · gabrielneuman.com
+```
+
+**Capturas en inglés:** `npm run capturas -- en` → `dist/tienda/en/`.
+
 ## Pestaña "Prácticas de privacidad" (Privacy practices)
 
 **Propósito único** (Single purpose):

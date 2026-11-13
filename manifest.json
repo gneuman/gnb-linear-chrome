@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "¿Qué sigue?",
-  "version": "0.7.6",
+  "name": "__MSG_nombre__",
+  "default_locale": "es",
+  "version": "0.8.0",
   "homepage_url": "https://gabrielneuman.com",
-  "description": "Tus issues de Linear y tus recordatorios: qué sigue, qué va a un agente y qué está atorado.",
+  "description": "__MSG_descripcion__",
   "permissions": ["storage", "alarms", "notifications", "identity", "identity.email", "unlimitedStorage"],
   "host_permissions": ["https://api.linear.app/*", "https://api.anthropic.com/*"],
   "background": { "service_worker": "background.js", "type": "module" },

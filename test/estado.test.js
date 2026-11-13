@@ -111,3 +111,9 @@ test('riesgo: el label de color dentro del grupo riesgo, como está en Linear', 
   assert.equal(riesgo(issue('Z2', { labels: { nodes: [{ id: 'r', name: 'Rojo' }] } })), 'rojo', 'el color solo, sin grupo');
   assert.equal(riesgo(issue('Z3', { labels: { nodes: [{ id: 'x', name: 'verde-limón', parent: { name: 'marca' } }] } })), null);
 });
+
+test('resumen saca también el "Done when" en inglés', () => {
+  const r = resumen('Fix the checkout.\nDone when: the payment creates the row');
+  assert.equal(r.listoCuando, 'the payment creates the row');
+  assert.equal(r.texto, 'Fix the checkout.');
+});
