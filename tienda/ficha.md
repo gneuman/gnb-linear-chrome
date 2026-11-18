@@ -96,6 +96,7 @@ Mostrar los issues de Linear asignados a la persona, ordenados por lo que sigue,
 | `storage` | Guarda en el Chrome de la persona su API key de Linear, sus ajustes, sus recordatorios y la última lista de issues para abrir el popup al instante. |
 | `alarms` | Revisa Linear cada 5 minutos, manda el resumen diario a la hora elegida y hace sonar cada recordatorio a su hora. |
 | `notifications` | Avisa cuando suena un recordatorio, cuando le asignan un issue nuevo a la persona y con el resumen diario. |
+| `contextMenus` | Agrega la opción «Crear issue en Linear» al clic derecho: crea un issue en el Linear de la persona con el texto que seleccionó y la liga de la página. Solo actúa cuando la persona elige esa opción; no lee páginas por su cuenta. |
 | `identity` | Se necesita para leer el correo del perfil de Chrome (ver `identity.email`). No inicia sesión ni pide tokens de Google. |
 | `identity.email` | Lee el correo del perfil de Chrome para mostrar solo los issues asignados a esa persona en Linear, si no escribió otro correo en Ajustes. El correo no sale de la computadora salvo en la consulta a Linear que busca a esa persona. |
 | `unlimitedStorage` | Guarda la copia local de los issues de la persona (pueden ser cientos con su descripción) para abrir el popup al instante sin pedirlos otra vez a Linear. |
