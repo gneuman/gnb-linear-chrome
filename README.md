@@ -1,4 +1,6 @@
-# ¿Qué sigue? · Linear en una pestaña de Chrome
+# Linear · ¿Qué sigue?
+
+**[Instalar desde la Chrome Web Store](https://chromewebstore.google.com/detail/hanbkkcipbiedbiolomknpfalaibibmg)** · Atajo: `Alt+Shift+L` abre el popup.
 
 Extensión de Chrome para operar el día desde Linear sin abrir Linear:
 qué sigue, qué se suelta a un agente, qué está atorado y tus recordatorios.
