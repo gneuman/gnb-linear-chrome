@@ -87,3 +87,5 @@ a.boton.primario { background: var(--acento); border-color: var(--acento); color
 .numero span { display: block; font-size: 9.5px; color: var(--suave); line-height: 1.15; margin-top: 2px; }
 .numero.alerta { border-color: var(--rojo); }
 .numero.alerta b { color: var(--rojo); }
+
+.version { opacity: .5; font-size: 10px; margin-left: 4px; align-self: center; }
