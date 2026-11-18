@@ -5,7 +5,7 @@ The interface follows Chrome's language (Spanish or English); change it in ⚙ S
 
 ## 1. Install it
 
-**From the Chrome Web Store** (once it is approved): open the store link in Chrome,
+**From the Chrome Web Store:** open <https://chromewebstore.google.com/detail/%C2%BFqu%C3%A9-sigue/hanbkkcipbiedbiolomknpfalaibibmg> in Chrome,
 click **Add to Chrome** → **Add extension**, then pin it from the 🧩 menu.
 
 **Until then** (from this repo):

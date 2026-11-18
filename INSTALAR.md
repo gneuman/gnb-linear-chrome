@@ -4,9 +4,9 @@ Te enseña tus tareas de Linear y te recuerda cosas desde Chrome. Toma 3 minutos
 
 ## 1. Instálala
 
-**Desde la Chrome Web Store** (cuando ya esté aprobada):
+**Desde la Chrome Web Store:**
 
-1. Abre esta liga en Chrome: `LIGA_DE_LA_TIENDA`
+1. Abre esta liga en Chrome: <https://chromewebstore.google.com/detail/%C2%BFqu%C3%A9-sigue/hanbkkcipbiedbiolomknpfalaibibmg>
 2. Pulsa **Añadir a Chrome** → **Añadir extensión**.
 3. Fíjala: ícono de rompecabezas 🧩 arriba a la derecha → 📌 junto a «¿Qué sigue?».
 
