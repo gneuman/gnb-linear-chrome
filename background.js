@@ -1,6 +1,6 @@
 // Service worker: revisa Linear cada 15 min, pone el número en el ícono,
 // manda el resumen diario y dispara los recordatorios.
-import { resolverPersona, issuesDe } from './lib/linear.js';
+import { resolverPersona, issuesDe, crearIssue, issueDeSeleccion } from './lib/linear.js';
 import { enProyectoActivo } from './lib/estado.js';
 import { clasificar, nuevos } from './lib/estado.js';
 import { siguienteHora } from './lib/schedule.js';
@@ -16,6 +16,7 @@ chrome.runtime.onInstalled.addListener(() => {
   // La 0.3.0 guardaba vistas de Linear; se quitaron en la 0.4.0.
   chrome.storage.local.remove('vistas');
   programar();
+  menus();
 });
 chrome.runtime.onStartup.addListener(programar);
 
@@ -192,7 +193,47 @@ chrome.notifications.onButtonClicked.addListener(async (notifId, boton) => {
   chrome.notifications.clear(notifId);
 });
 
+// Clic derecho → "Crear issue en Linear": con lo seleccionado o con la página.
+const MENU = 'crear-issue';
+const CREADO = 'creado:';
+async function menus() {
+  await usarIdioma();
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({ id: MENU, title: t('Crear issue en Linear'), contexts: ['selection', 'page', 'link'] });
+  });
+}
+chrome.runtime.onStartup.addListener(menus);
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== MENU) return;
+  await usarIdioma();
+  const avisar = (id, title, message) =>
+    chrome.notifications.create(id, { type: 'basic', iconUrl: ICONO, title, message });
+  try {
+    const c = await config();
+    if (!c.llave) throw new Error(t('Falta la API key de Linear. Ábrela en Ajustes.'));
+    const { cache } = await chrome.storage.local.get('cache');
+    const personaId = cache?.persona?.id || (await resolverPersona(c.llave, [{ correo: c.correo, fuente: 'ajustes' }])).id;
+    const campos = issueDeSeleccion({
+      texto: info.selectionText || '',
+      tituloPagina: tab?.title || '',
+      url: info.linkUrl || info.pageUrl || tab?.url || '',
+    });
+    const issue = await crearIssue(c.llave, { personaId, equipoKey: equiposDe(c)[0] || '', ...campos });
+    await chrome.storage.local.set({ ultimoCreado: issue.url });
+    avisar(CREADO + issue.url, t('Issue creado: {id}', { id: issue.identifier }), campos.title);
+    refrescar();
+  } catch (e) {
+    avisar('error-crear:' + Date.now(), t('No se creó el issue'), e.message);
+  }
+});
+
 chrome.notifications.onClicked.addListener(async (notifId) => {
+  if (notifId.startsWith(CREADO)) {
+    chrome.tabs.create({ url: notifId.slice(CREADO.length) });
+    chrome.notifications.clear(notifId);
+    return;
+  }
   if (notifId.startsWith(NUEVO)) {
     const { cache } = await chrome.storage.local.get('cache');
     const issue = cache?.issues?.find((i) => i.id === notifId.slice(NUEVO.length));
