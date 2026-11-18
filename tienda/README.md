@@ -27,7 +27,7 @@ con datos de ejemplo. Vuelve a correrlo si cambia cómo se ve el popup.
 1. Entra a <https://chrome.google.com/webstore/devconsole> con la cuenta de Google que será dueña.
 2. Acepta el acuerdo y paga los **5 USD** (un solo pago).
 3. En **Cuenta**, pon un correo de contacto y verifícalo.
-4. Cuando pregunte si eres comerciante (trader): si la extensión es gratis y la donación es voluntaria, normalmente es **No**. Si contestas **Sí**, Google enseña tu dirección y teléfono en la ficha. Decídelo tú.
+4. Cuando pregunte si eres comerciante (trader): si la extensión es gratis y la donación es voluntaria, normalmente es **No**. Si contestas **Sí**, Google enseña tu dirección y teléfono en la ficha. Decídelo tú. (2026-11-18: salió el celular de Gabriel en la ficha; se quita en la consola, Cuenta → estado de comerciante → No comerciante, o cambiando el teléfono de contacto.)
 
 ## 2. Subir el paquete
 
