@@ -1,0 +1,20 @@
+# Publica en la Chrome Web Store desde GitHub: Actions → "Publicar en la tienda" → Run workflow.
+# También corre solo al empujar una etiqueta v* (git tag v0.8.3 && git push --tags).
+# Secretos (Settings → Secrets and variables → Actions): CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN.
+name: Publicar en la tienda
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm run publicar
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}

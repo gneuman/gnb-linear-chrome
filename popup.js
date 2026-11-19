@@ -806,6 +806,7 @@ for (const b of document.querySelectorAll('[data-tab]')) {
     if (b.dataset.tab === 'taskai') pintarTaskAI();
   });
 }
+$('#version').textContent = 'v' + chrome.runtime.getManifest().version;
 $('#ajustes').addEventListener('click', () => chrome.runtime.openOptionsPage());
 $('#refrescar').addEventListener('click', async () => {
   avisar(t('Revisando Linear…'), true);

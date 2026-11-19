@@ -53,7 +53,42 @@ arregla en la justificación de [ficha.md](ficha.md).
 Ya aprobada, en la ficha está la liga `https://chromewebstore.google.com/detail/…`.
 Esa liga va en [INSTALAR.md](../INSTALAR.md) y se le manda al equipo.
 
-## Actualizar
+## Actualizar rápido (recomendado)
+
+Liga pública: <https://chromewebstore.google.com/detail/hanbkkcipbiedbiolomknpfalaibibmg>
+
+Una vez configurado, cada actualización es:
+
+```bash
+npm run version
+```
+
+```bash
+git commit -am "versión" && git tag v$(node -p "require('./manifest.json').version") && git push --follow-tags
+```
+
+La etiqueta dispara la Action **Publicar en la tienda**: corre las pruebas, arma el zip,
+lo sube y lo manda a revisión. También se lanza a mano en GitHub → Actions → Run workflow,
+o desde tu compu con `npm run publicar` (con las tres variables en el entorno).
+`npm run version -- menor` sube 0.8 → 0.9; `npm run version -- 1.0.0` pone una exacta.
+
+### Configurarlo (una sola vez, ~10 min)
+
+1. <https://console.cloud.google.com> → proyecto nuevo → **APIs y servicios → Biblioteca** → habilita **Chrome Web Store API**.
+2. **Pantalla de consentimiento OAuth**: tipo Externo, agrégate como usuario de prueba.
+3. **Credenciales → Crear → ID de cliente OAuth → App de escritorio**. Copia el *client id* y el *client secret*.
+4. Saca el refresh token: abre en el navegador (con tu client id)
+   `https://accounts.google.com/o/oauth2/auth?response_type=code&scope=https://www.googleapis.com/auth/chromewebstore&access_type=offline&prompt=consent&redirect_uri=http://localhost&client_id=TU_CLIENT_ID`
+   acepta, y copia el `code=` de la URL a la que te manda (aunque la página no cargue). Luego:
+   ```bash
+   curl -s https://oauth2.googleapis.com/token -d client_id=TU_CLIENT_ID -d client_secret=TU_SECRET -d code=EL_CODE -d grant_type=authorization_code -d redirect_uri=http://localhost
+   ```
+   El `refresh_token` de la respuesta es el tercero.
+5. En GitHub: repo → **Settings → Secrets and variables → Actions** → crea `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`.
+
+Si la consola pide justificar un permiso nuevo, esa parte sí es a mano.
+
+## Actualizar a mano
 
 1. Sube `"version"` en `manifest.json`.
 2. `npm run empaquetar`.

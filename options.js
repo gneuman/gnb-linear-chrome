@@ -6,6 +6,7 @@ const $ = (s) => document.querySelector(s);
 
 await usarIdioma();
 traducirDom();
+$('#version').textContent = chrome.runtime.getManifest().version;
 
 config().then(async (c) => {
   $('#idioma').value = c.idioma || '';

@@ -1,8 +1,11 @@
 {
   "nombre": {
-    "message": "¿Qué sigue? · Tus tareas de Linear"
+    "message": "Linear · ¿Qué sigue?"
   },
   "descripcion": {
     "message": "Tus issues de Linear y tus recordatorios: qué sigue, qué va a un agente y qué está atorado."
+  },
+  "atajo": {
+    "message": "Abrir ¿Qué sigue?"
   }
 }
