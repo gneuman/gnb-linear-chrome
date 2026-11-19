@@ -1,7 +1,7 @@
-import { clasificar, resumen, riesgo, talla, labelsParaAgente, proyectosDe, estadisticas, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
+import { clasificar, delegadoFuera, nombreFuera, resumen, riesgo, talla, labelsParaAgente, proyectosDe, estadisticas, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
-import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, idsDeLabels, idDeIssue, traerIssue, TOPE } from './lib/linear.js';
+import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, idsDeLabels, idDeIssue, traerIssue, personasFuera, delegarFuera, TOPE } from './lib/linear.js';
 import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento, prsDe, hechoPorPRs } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 import { t, locale, usarIdioma, traducirDom } from './lib/i18n.js';
@@ -125,6 +125,7 @@ function tarjetaTuya(issue, grande = false) {
       botonTaskAI(issue),
       botonComentar(issue),
       botonDelegar(issue),
+      botonFuera(issue),
       botonEditar(issue),
       botonRecordar(issue)));
 }
@@ -343,6 +344,55 @@ function botonDelegar(issue) {
   }, t('Delegar a…'));
 }
 
+/**
+ * Delegar a alguien que no está en Linear (Aida, un proveedor…), igual que radar.gnb.mx:
+ * etiqueta «Delegado a › Nombre». Sigue a tu nombre, pero sale de «Ahora» y queda en
+ * «Esperando a otros». Si ya lo tiene alguien, el modal deja regresártelo.
+ */
+function botonFuera(issue) {
+  const quien = delegadoFuera(issue);
+  return el('button', {
+    title: t('Se lo pasas a alguien que no usa Linear: sigue a tu nombre, pero ya no cuenta como tuyo'),
+    onclick: async () => {
+      const titulo = t('Delegar {id} fuera de Linear', { id: issue.identifier });
+      const m = modal({ titulo, texto: t('Cargando…') });
+      try {
+        const c = await config();
+        const personas = (await personasFuera(c.llave)).filter((p) => p.nombre !== quien);
+        const otra = el('input', { type: 'text', class: 'modal-select', placeholder: t('Otra persona (ej. Aida)'), maxlength: '40', hidden: personas.length ? 'hidden' : false });
+        const sel = el('select', { class: 'modal-select', hidden: personas.length ? false : 'hidden',
+          onchange: () => { otra.hidden = sel.value !== '+'; if (!otra.hidden) otra.focus(); } },
+          ...personas.map((p) => el('option', { value: p.nombre }, p.nombre)),
+          el('option', { value: '+' }, t('Otra persona…')));
+        if (!personas.length) sel.value = '+';
+        const mandar = async (nombre, hecho) => {
+          m.cambiar({ titulo: t('Guardando en Linear…') });
+          try {
+            await delegarFuera(c.llave, issue, nombre);
+            m.cambiar({ tono: 'bien', titulo: hecho, texto: t('Ya está en Linear, con comentario.'), botones: [{ texto: t('Listo') }] });
+            await chrome.runtime.sendMessage({ tipo: 'refrescar' });
+            await pintar();
+          } catch (err) {
+            m.cambiar({ tono: 'mal', titulo: t('❌ No se hizo'), texto: err.message, botones: [{ texto: t('Cerrar') }] });
+          }
+        };
+        const botones = [{ texto: t('Delegar'), primario: true, onclick: () => {
+          const nombre = nombreFuera(sel.value === '+' ? otra.value : sel.value);
+          if (nombre === null) return avisar(t('El nombre es muy largo (máximo 40).'));
+          if (!nombre) return otra.focus();
+          mandar(nombre, t('✅ {id} lo tiene {nombre}', { id: issue.identifier, nombre }));
+        } }];
+        if (quien) botones.push({ texto: t('↩ Regresármelo'), onclick: () => mandar('', t('✅ {id} regresó a ti', { id: issue.identifier })) });
+        botones.push({ texto: t('Cancelar') });
+        m.cambiar({ titulo, texto: quien ? t('Hoy lo tiene {nombre}. ¿A quién se lo pasas?', { nombre: quien }) : issue.title,
+          cuerpo: el('div', {}, sel, otra), botones });
+      } catch (err) {
+        m.cambiar({ tono: 'mal', titulo: t('❌ No pude cargar a las personas'), texto: err.message, botones: [{ texto: t('Cerrar') }] });
+      }
+    },
+  }, quien ? t('Lo tiene {nombre}…', { nombre: quien }) : t('Delegar fuera de Linear…'));
+}
+
 /** Dejar un comentario en Linear sin abrir el issue. Ctrl+Enter lo manda. */
 function botonComentar(issue) {
   return el('button', {
@@ -455,7 +505,7 @@ function tarjetaAtorada(issue) {
     cabecera(issue),
     el('div', { class: 'meta' }, `${meta(issue)}${dias}`),
     lineaPRs(issue),
-    el('div', { class: 'acciones' }, botonTaskAI(issue), botonCopiar(issue), botonComentar(issue), botonDelegar(issue), botonEditar(issue), botonRecordar(issue)));
+    el('div', { class: 'acciones' }, botonTaskAI(issue), botonCopiar(issue), botonComentar(issue), botonDelegar(issue), botonFuera(issue), botonEditar(issue), botonRecordar(issue)));
 }
 
 /** Notas por issue que le sirven a Claude: riesgo, "Listo cuando" y días sin moverse. */
@@ -537,7 +587,9 @@ function plegado(titulo, lista, nota, consulta = null) {
       el('span', { class: 'id' }, i.identifier),
       el('a', { href: i.url, target: '_blank' }, i.title),
       ...chips(i),
-      i.dias != null ? el('span', { class: 'id' }, `${i.dias} d`) : null)));
+      i.dias != null ? el('span', { class: 'id' }, `${i.dias} d`) : null,
+      // Lo que tiene alguien fuera de Linear se ve y se regresa desde aquí.
+      delegadoFuera(i) ? botonFuera(i) : null)));
 }
 
 async function pintarAhora() {
@@ -577,7 +629,7 @@ async function pintarAhora() {
     ...seccion(t('Para agente'), g.agente, tarjetaAgente, t('Nada listo para soltar.'), consulta('agente')),
     ...seccion(t('Esperan info'), g.info, tarjetaAtorada, t('Nada esperando respuesta.'), consulta('info')),
     el('h2', {}, t('No es para hoy')),
-    plegado(t('Esperando a otros'), g.esperando, t('review o block, más viejo primero'), consulta('esperando')),
+    plegado(t('Esperando a otros'), g.esperando, t('review, block o fuera de Linear, más viejo primero'), consulta('esperando')),
     plegado(t('Después'), g.despues, t('👤 en Backlog'), consulta('despues')),
     plegado(t('Sin triage'), g.sinTriage, t('corre /triage-dia'), consulta('sinTriage')),
     el('p', { class: 'meta' },

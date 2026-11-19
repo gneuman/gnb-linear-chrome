@@ -152,3 +152,23 @@ test('lo delegado a alguien fuera de Linear no es para hoy', () => {
   ]);
   assert.deepEqual([g.esperando.map((i) => i.id), g.ahora.map((i) => i.id)], [['F1'], ['F2']]);
 });
+
+test('delegar fuera de Linear: cambia la etiqueta del grupo «Delegado a» sin tocar las demás', async () => {
+  const { cambioFuera, nombreFuera } = await import('../lib/estado.js');
+  const fuera = (id, name) => ({ id, name, parent: { name: 'Delegado a' } });
+  const issue = { labels: { nodes: [fuera('aida', 'Aida'), { id: 'v', name: 'verde', parent: { name: 'riesgo' } }] } };
+  assert.deepEqual(cambioFuera(issue, 'juan'), { addedLabelIds: ['juan'], removedLabelIds: ['aida'] });
+  assert.deepEqual(cambioFuera(issue, ''), { addedLabelIds: [], removedLabelIds: ['aida'] });
+  assert.deepEqual(cambioFuera(issue, 'aida'), { addedLabelIds: [], removedLabelIds: [] });
+  assert.deepEqual(cambioFuera({ labels: { nodes: [] } }, 'aida'), { addedLabelIds: ['aida'], removedLabelIds: [] });
+  assert.equal(nombreFuera('  Aida   Pérez '), 'Aida Pérez');
+  assert.equal(nombreFuera(''), '');
+  assert.equal(nombreFuera('x'.repeat(41)), null);
+});
+
+test('lo delegado fuera de Linear queda en «Esperando a otros», no en «Ahora»', () => {
+  const i = { id: '1', identifier: 'OP-1', state: { type: 'started', name: 'In Progress' }, labels: { nodes: [{ id: 'a', name: 'Aida', parent: { name: 'Delegado a' } }] } };
+  const g = clasificar([i]);
+  assert.equal(g.ahora.length, 0);
+  assert.equal(g.esperando.length, 1);
+});
