@@ -144,3 +144,11 @@ test('enProyectoActivo: solo proyectos In Progress; On Hold (también started) y
   assert.equal(enProyectoActivo({ project: null }), false);
   assert.equal(enProyectoActivo({ project: { id: 'x' } }), true, 'caché vieja sin status: no se esconde');
 });
+
+test('lo delegado a alguien fuera de Linear no es para hoy', () => {
+  const g = clasificar([
+    { id: 'F1', state: { type: 'started', name: 'In Progress' }, labels: { nodes: [{ name: 'Aida', parent: { name: 'Delegado a' } }] } },
+    { id: 'F2', state: { type: 'started', name: 'In Progress' }, labels: { nodes: [{ name: 'Aida' }] } },
+  ]);
+  assert.deepEqual([g.esperando.map((i) => i.id), g.ahora.map((i) => i.id)], [['F1'], ['F2']]);
+});
