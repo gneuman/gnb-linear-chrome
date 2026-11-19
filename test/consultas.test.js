@@ -181,8 +181,11 @@ test('textoDeIssue dice el repo, o que falta en Linear', () => {
   assert.match(textoDeIssue(base), /- Repo: no está en Linear/);
 });
 
-test('filtroDeGrupo con soloActivos: proyecto en curso o sin proyecto', () => {
-  const f = filtroDeGrupo('ahora', { personaId: 'p', soloActivos: true });
-  assert.ok(JSON.stringify(f).includes('{"or":[{"project":{"null":true}},{"project":{"status":{"type":{"eq":"started"}}}}]}'));
+test('filtroDeGrupo con soloActivos: proyecto en curso sin pausas (igual que el radar), sin proyecto no sale', () => {
+  const f = JSON.stringify(filtroDeGrupo('ahora', { personaId: 'p', soloActivos: true }));
+  assert.ok(f.includes('{"project":{"status":{"type":{"eq":"started"}}}}'));
+  assert.ok(f.includes('{"project":{"status":{"name":{"notContainsIgnoreCase":"hold"}}}}'));
+  assert.ok(f.includes('{"project":{"status":{"name":{"notContainsIgnoreCase":"paus"}}}}'));
+  assert.ok(!f.includes('{"project":{"null":true}}'));
   assert.ok(!JSON.stringify(filtroDeGrupo('ahora', { personaId: 'p' })).includes('status'));
 });
