@@ -133,12 +133,14 @@ test('estadisticas: abiertos, en curso, urgentes, vencidos, quietos y para agent
 });
 
 import { enProyectoActivo } from '../lib/estado.js';
-test('enProyectoActivo: solo proyectos In Progress; sin proyecto sí sale', () => {
-  assert.equal(enProyectoActivo({ project: { status: { type: 'started' } } }), true);
-  assert.equal(enProyectoActivo({ project: { status: { type: 'planned' } } }), false);
+test('enProyectoActivo: solo proyectos In Progress; On Hold (también started) y sin proyecto no salen', () => {
+  assert.equal(enProyectoActivo({ project: { status: { type: 'started', name: 'In Progress' } } }), true);
+  assert.equal(enProyectoActivo({ project: { status: { type: 'started', name: 'On Hold' } } }), false);
+  assert.equal(enProyectoActivo({ project: { status: { type: 'started', name: 'Paused' } } }), false);
+  assert.equal(enProyectoActivo({ project: { status: { type: 'planned', name: 'Todo' } } }), false);
   assert.equal(enProyectoActivo({ project: { status: { type: 'paused' } } }), false);
   assert.equal(enProyectoActivo({ project: { status: { type: 'backlog' } } }), false);
   assert.equal(enProyectoActivo({ project: { status: { type: 'completed' } } }), false);
-  assert.equal(enProyectoActivo({ project: null }), true);
-  assert.equal(enProyectoActivo({ project: { id: 'x' } }), true);
+  assert.equal(enProyectoActivo({ project: null }), false);
+  assert.equal(enProyectoActivo({ project: { id: 'x' } }), true, 'caché vieja sin status: no se esconde');
 });
