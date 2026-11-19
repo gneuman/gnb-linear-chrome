@@ -51,6 +51,7 @@ Linear** las crea (las que ya existen no se tocan):
 | **Editar** | En cada tarjeta: estado, talla y persona, directo en Linear |
 | **Copiar issue** | En cada tarjeta. Copia ese issue listo para pegar en una sesión de Claude: link, repo de GitHub (del issue o del link "Repo" del proyecto en Linear), rama exacta de Linear, estado, prioridad, talla, riesgo, descripción completa y cómo arrancar (worktree) |
 | **Tamaño y prioridad** | Cada issue enseña su prioridad (Urgente en rojo, Alta en naranja) y su talla (XS–XL) |
+| **Buscar o traer un issue** | Arriba: pega un ID (`CID-683`) o su liga y queda fijo con todos los botones. Si escribes palabras, busca en el título de cualquier issue de tu Linear (abiertos primero) y un clic lo trae |
 | **Crear issue desde cualquier página** | Selecciona texto → clic derecho → **Crear issue en Linear**. Queda asignado a ti, en el primer equipo de Ajustes, con la cita y la liga de la página. Sin selección usa el título de la página. La notificación lo abre |
 | **Recordatorios** | Escribe arriba `10am revisar propuesta`, `a las 16:30 llamar`, `en 30 min mandar correo`. Una vez, diario o L a V. El ⏰ de cada issue lo prellena |
 | **Proyecto** | Selector arriba: Todos, un proyecto o *Sin proyecto*. Se recuerda al reabrir. El número del ícono sigue contando todos |

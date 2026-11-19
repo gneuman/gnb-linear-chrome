@@ -1,7 +1,7 @@
 import { clasificar, delegadoFuera, nombreFuera, resumen, riesgo, talla, labelsParaAgente, proyectosDe, estadisticas, SIN_PROYECTO, OPCIONES_TALLA, LABEL, RIESGO } from './lib/estado.js';
 import { filtroDeGrupo, textoParaClaude, textoDeIssue, GRUPOS } from './lib/consultas.js';
 import { parseRapido, siguienteHora } from './lib/schedule.js';
-import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, idsDeLabels, idDeIssue, traerIssue, personasFuera, delegarFuera, TOPE } from './lib/linear.js';
+import { empezar, moverAAgente, actualizar, opcionesDelTeam, issuesTaskAI, terminar, comentar, idsDeLabels, idDeIssue, traerIssue, buscarIssues, personasFuera, delegarFuera, TOPE } from './lib/linear.js';
 import { listoParaClaude, repoParaClaude, dispararTaskAI, mandadoHacePoco, seguimiento, prsDe, hechoPorPRs } from './lib/taskai.js';
 import { config, guardarConfig, cache, recordatorios, guardarRecordatorios, equiposDe } from './lib/store.js';
 import { t, locale, usarIdioma, traducirDom } from './lib/i18n.js';
@@ -661,16 +661,33 @@ async function guardarTraidos(lista) {
 }
 
 async function seccionTraidos(persona) {
-  const campo = el('input', { type: 'text', placeholder: t('Pega un issue: CID-683 o su liga'), autocomplete: 'off' });
+  const campo = el('input', { type: 'text', placeholder: t('Busca o pega un issue: CID-683, su liga o palabras'), autocomplete: 'off' });
   const caja = el('div', { class: 'traidos' });
   const form = el('form', { class: 'traer', onsubmit: async (e) => {
     e.preventDefault();
     const id = idDeIssue(campo.value);
-    if (!id) return avisar(t('Eso no parece un issue. Pega el ID (CID-683) o la liga de Linear.'));
+    if (id) return fijar(id);
+    // No es un ID: busca por palabras del título, en todo tu Linear.
+    resultados.replaceChildren(el('p', { class: 'vacio' }, t('Buscando…')));
+    try {
+      const c = await config();
+      const lista = await buscarIssues(c.llave, campo.value);
+      resultados.replaceChildren(...(lista.length
+        ? lista.map((i) => el('div', { class: 'compacto' },
+            el('span', { class: 'id' }, i.identifier),
+            el('a', { href: '#', title: t('Traerlo aquí con todos sus botones'), onclick: (e) => { e.preventDefault(); fijar(i.identifier); } }, i.title),
+            el('span', { class: 'id' }, `${i.state?.name || ''}${i.assignee ? ` · ${i.assignee.name}` : ''}`)))
+        : [el('p', { class: 'vacio' }, t('No encontré issues con «{texto}» en el título.', { texto: campo.value.trim() }))]));
+    } catch (err) {
+      resultados.replaceChildren(el('p', { class: 'aviso' }, err.message));
+    }
+  } }, campo, el('button', { type: 'submit' }, t('Traer')));
+  const resultados = el('div', { class: 'resultados' });
+  async function fijar(id) {
     await guardarTraidos([id, ...(await traidos()).filter((t) => t !== id)]);
     campo.value = '';
     await pintarAhora();
-  } }, campo, el('button', { type: 'submit' }, t('Traer')));
+  }
 
   const ids = await traidos();
   if (ids.length) {
@@ -684,7 +701,7 @@ async function seccionTraidos(persona) {
     if (issues.length) caja.append(el('h2', {}, t('📌 Traídos')));
     for (const i of issues) caja.append(tarjetaTraida(i, persona));
   }
-  return el('div', {}, form, caja);
+  return el('div', {}, form, resultados, caja);
 }
 
 function tarjetaTraida(issue, persona) {
